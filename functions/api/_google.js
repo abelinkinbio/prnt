@@ -1,0 +1,380 @@
+// ============================================
+// PRNT - Google API Utilities
+// Shared functions for OAuth and API calls
+// ============================================
+
+// Google OAuth configuration
+// These will be set via environment variables in Cloudflare
+export const GOOGLE_SCOPES = [
+  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/tasks'
+].join(' ');
+
+// Helper: Get OAuth URL
+export function getAuthUrl(clientId, redirectUri) {
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: GOOGLE_SCOPES,
+    access_type: 'offline',
+    prompt: 'consent'
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+}
+
+// Helper: Exchange code for tokens
+export async function exchangeCodeForTokens(code, clientId, clientSecret, redirectUri) {
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      grant_type: 'authorization_code'
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Token exchange failed: ${error}`);
+  }
+
+  return response.json();
+}
+
+// Helper: Refresh access token
+export async function refreshAccessToken(refreshToken, clientId, clientSecret) {
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      refresh_token: refreshToken,
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'refresh_token'
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Token refresh failed: ${error}`);
+  }
+
+  return response.json();
+}
+
+// Helper: Get valid access token (refreshing if needed)
+export async function getValidAccessToken(env) {
+  const auth = await env.DB.prepare(`
+    SELECT * FROM google_auth WHERE id = 'default'
+  `).first();
+
+  if (!auth) {
+    return null;
+  }
+
+  const now = new Date();
+  const expiry = new Date(auth.token_expiry);
+
+  // If token expires in less than 5 minutes, refresh it
+  if (expiry.getTime() - now.getTime() < 5 * 60 * 1000) {
+    try {
+      const tokens = await refreshAccessToken(
+        auth.refresh_token,
+        env.GOOGLE_CLIENT_ID,
+        env.GOOGLE_CLIENT_SECRET
+      );
+
+      const newExpiry = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
+
+      await env.DB.prepare(`
+        UPDATE google_auth 
+        SET access_token = ?, token_expiry = ?, updated_at = ?
+        WHERE id = 'default'
+      `).bind(tokens.access_token, newExpiry, new Date().toISOString()).run();
+
+      return tokens.access_token;
+    } catch (error) {
+      console.error('Failed to refresh token:', error);
+      return null;
+    }
+  }
+
+  return auth.access_token;
+}
+
+// Helper: Create Google Calendar reminder
+export async function createCalendarReminder(accessToken, task) {
+  if (!task.due_date) return null;
+
+  // Parse the due date and time
+  const dueDateTime = task.due_time 
+    ? `${task.due_date}T${task.due_time}:00`
+    : `${task.due_date}T18:00:00`; // Default to 6pm if no time specified
+
+  // Create a "reminder" event (short duration, with notifications)
+  const event = {
+    summary: `📋 ${task.content}`,
+    description: `PRNT Task\nPriority: P${task.priority ?? '-'}\nTags: ${(task.tags || []).map(t => '#' + t).join(' ') || 'none'}`,
+    start: {
+      dateTime: dueDateTime,
+      timeZone: 'Europe/Lisbon'
+    },
+    end: {
+      dateTime: dueDateTime,
+      timeZone: 'Europe/Lisbon'
+    },
+    reminders: {
+      useDefault: false,
+      overrides: [
+        { method: 'popup', minutes: 24 * 60 }, // 24 hours before
+        { method: 'popup', minutes: 0 }        // At time of event
+      ]
+    },
+    visibility: 'private',
+    transparency: 'transparent' // Shows as "free" on calendar
+  };
+
+  // We also want a reminder at 10am on the due date
+  // If the task is due after 10am, we create the main event
+  // We'll create a separate "morning reminder" event at 10am
+
+  const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(event)
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Calendar API error: ${error}`);
+  }
+
+  const createdEvent = await response.json();
+
+  // Create morning reminder at 10am if the due time is after 10am
+  const dueHour = task.due_time ? parseInt(task.due_time.split(':')[0]) : 18;
+  if (dueHour > 10) {
+    const morningEvent = {
+      summary: `🌅 Due today: ${task.content}`,
+      description: `PRNT Task reminder - due at ${task.due_time || '18:00'}\nPriority: P${task.priority ?? '-'}`,
+      start: {
+        dateTime: `${task.due_date}T10:00:00`,
+        timeZone: 'Europe/Lisbon'
+      },
+      end: {
+        dateTime: `${task.due_date}T10:00:00`,
+        timeZone: 'Europe/Lisbon'
+      },
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'popup', minutes: 0 }
+        ]
+      },
+      visibility: 'private',
+      transparency: 'transparent'
+    };
+
+    await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(morningEvent)
+    });
+  }
+
+  return createdEvent.id;
+}
+
+// Helper: Update Google Calendar event
+export async function updateCalendarEvent(accessToken, eventId, task) {
+  if (!task.due_date) {
+    // If no due date, delete the event
+    await deleteCalendarEvent(accessToken, eventId);
+    return null;
+  }
+
+  const dueDateTime = task.due_time 
+    ? `${task.due_date}T${task.due_time}:00`
+    : `${task.due_date}T18:00:00`;
+
+  const event = {
+    summary: task.completed ? `✅ ${task.content}` : `📋 ${task.content}`,
+    description: `PRNT Task\nPriority: P${task.priority ?? '-'}\nTags: ${(task.tags || []).map(t => '#' + t).join(' ') || 'none'}`,
+    start: {
+      dateTime: dueDateTime,
+      timeZone: 'Europe/Lisbon'
+    },
+    end: {
+      dateTime: dueDateTime,
+      timeZone: 'Europe/Lisbon'
+    },
+    visibility: 'private',
+    transparency: 'transparent'
+  };
+
+  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(event)
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Calendar update error: ${error}`);
+  }
+
+  return eventId;
+}
+
+// Helper: Delete Google Calendar event
+export async function deleteCalendarEvent(accessToken, eventId) {
+  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }
+  });
+
+  // 404 is ok - event might have been manually deleted
+  if (!response.ok && response.status !== 404) {
+    const error = await response.text();
+    throw new Error(`Calendar delete error: ${error}`);
+  }
+}
+
+// Helper: Create Google Task
+export async function createGoogleTask(accessToken, task) {
+  // First, get or create a "PRNT" task list
+  const taskListId = await getOrCreateTaskList(accessToken, 'PRNT');
+
+  const googleTask = {
+    title: task.content,
+    notes: `Priority: P${task.priority ?? '-'}\nTags: ${(task.tags || []).map(t => '#' + t).join(' ') || 'none'}`,
+    status: task.completed ? 'completed' : 'needsAction'
+  };
+
+  if (task.due_date) {
+    // Google Tasks API expects RFC 3339 date
+    googleTask.due = `${task.due_date}T00:00:00.000Z`;
+  }
+
+  const response = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${taskListId}/tasks`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(googleTask)
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Tasks API error: ${error}`);
+  }
+
+  const created = await response.json();
+  return created.id;
+}
+
+// Helper: Update Google Task
+export async function updateGoogleTask(accessToken, taskId, task) {
+  const taskListId = await getOrCreateTaskList(accessToken, 'PRNT');
+
+  const googleTask = {
+    title: task.content,
+    notes: `Priority: P${task.priority ?? '-'}\nTags: ${(task.tags || []).map(t => '#' + t).join(' ') || 'none'}`,
+    status: task.completed ? 'completed' : 'needsAction'
+  };
+
+  if (task.due_date) {
+    googleTask.due = `${task.due_date}T00:00:00.000Z`;
+  }
+
+  const response = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${taskListId}/tasks/${taskId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(googleTask)
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Tasks update error: ${error}`);
+  }
+
+  return taskId;
+}
+
+// Helper: Delete Google Task
+export async function deleteGoogleTask(accessToken, taskId) {
+  const taskListId = await getOrCreateTaskList(accessToken, 'PRNT');
+
+  const response = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${taskListId}/tasks/${taskId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok && response.status !== 404) {
+    const error = await response.text();
+    throw new Error(`Tasks delete error: ${error}`);
+  }
+}
+
+// Helper: Get or create PRNT task list
+let cachedTaskListId = null;
+
+async function getOrCreateTaskList(accessToken, listName) {
+  if (cachedTaskListId) return cachedTaskListId;
+
+  // List all task lists
+  const listResponse = await fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists', {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+
+  if (!listResponse.ok) {
+    throw new Error('Failed to fetch task lists');
+  }
+
+  const lists = await listResponse.json();
+  const existingList = (lists.items || []).find(l => l.title === listName);
+
+  if (existingList) {
+    cachedTaskListId = existingList.id;
+    return existingList.id;
+  }
+
+  // Create new list
+  const createResponse = await fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ title: listName })
+  });
+
+  if (!createResponse.ok) {
+    throw new Error('Failed to create task list');
+  }
+
+  const newList = await createResponse.json();
+  cachedTaskListId = newList.id;
+  return newList.id;
+}
