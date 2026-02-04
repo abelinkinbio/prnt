@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>PRNT — Quotes</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23228be6' rx='12' width='100' height='100'/><text x='50' y='68' font-family='monospace' font-size='50' font-weight='bold' fill='white' text-anchor='middle'>Q</text></svg>">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-primary: #0a1628;
+      --bg-secondary: rgba(10, 22, 40, 0.95);
+      --bg-grid: rgba(30, 73, 118, 0.3);
+      --border-color: #1e4976;
+      --border-accent: #3d8eff;
+      --text-primary: #e8f1ff;
+      --text-secondary: #adb5bd;
+      --text-muted: #6c757d;
+      --accent-color: #3d8eff;
+      --accent-light: rgba(61, 142, 255, 0.15);
+      --success-color: #51cf66;
+      --warning-color: #fcc419;
+      --error-color: #ff6b6b;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    
+    [data-theme="light"] {
+      --bg-primary: #f8f9fa;
+      --bg-secondary: #ffffff;
+      --bg-grid: rgba(206, 212, 218, 0.4);
+      --border-color: #dee2e6;
+      --border-accent: #228be6;
+      --text-primary: #212529;
+      --text-secondary: #495057;
+      --text-muted: #868e96;
+      --accent-color: #228be6;
+      --accent-light: rgba(34, 139, 230, 0.1);
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    body {
+      font-family: var(--font-mono);
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      background-image: 
+        linear-gradient(var(--bg-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+      background-size: 20px 20px;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 20px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+      background: linear-gradient(to bottom, var(--bg-primary) 0%, transparent 100%);
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+    
+    .logo-mark {
+      width: 32px;
+      height: 32px;
+      background: var(--accent-color);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      color: white;
+    }
+    
+    .logo-text {
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .header-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    
+    .header-btn:hover {
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+    }
+    
+    /* Main Quote Container */
+    .quote-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 100px 40px 140px;
+      text-align: center;
+      position: relative;
+      touch-action: pan-y;
+    }
+    
+    .quote-wrapper {
+      max-width: 800px;
+      width: 100%;
+      position: relative;
+    }
+    
+    /* Quote Marks */
+    .quote-mark {
+      font-size: 120px;
+      line-height: 1;
+      color: var(--accent-light);
+      position: absolute;
+      font-family: Georgia, serif;
+    }
+    
+    .quote-mark.open {
+      top: -40px;
+      left: -20px;
+    }
+    
+    .quote-mark.close {
+      bottom: -80px;
+      right: -20px;
+    }
+    
+    /* Quote Text */
+    .quote-text {
+      font-size: clamp(20px, 4vw, 32px);
+      font-weight: 400;
+      line-height: 1.6;
+      letter-spacing: 0.5px;
+      color: var(--text-primary);
+      margin-bottom: 30px;
+      position: relative;
+      z-index: 1;
+      transition: opacity 0.3s ease;
+    }
+    
+    .quote-text.loading {
+      opacity: 0.3;
+    }
+    
+    /* Attribution */
+    .quote-attribution {
+      font-size: 14px;
+      color: var(--accent-color);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    
+    .quote-source {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    
+    /* Quote Actions */
+    .quote-actions {
+      position: absolute;
+      bottom: -60px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .quote-wrapper:hover .quote-actions,
+    .quote-actions:focus-within {
+      opacity: 1;
+    }
+    
+    .action-btn {
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-muted);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    
+    .action-btn:hover {
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+    }
+    
+    .action-btn.favorite.active {
+      border-color: var(--warning-color);
+      color: var(--warning-color);
+      background: rgba(252, 196, 25, 0.1);
+    }
+    
+    .action-btn.delete:hover {
+      border-color: var(--error-color);
+      color: var(--error-color);
+    }
+    
+    /* Footer Controls */
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 20px 25px 30px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      background: linear-gradient(to top, var(--bg-primary) 0%, transparent 100%);
+    }
+    
+    .nav-btn {
+      width: 50px;
+      height: 50px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    
+    .nav-btn:hover {
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+      transform: scale(1.05);
+    }
+    
+    .nav-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .random-btn {
+      padding: 15px 30px;
+      border: 1px solid var(--accent-color);
+      background: var(--accent-color);
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .random-btn:hover {
+      background: transparent;
+      color: var(--accent-color);
+    }
+    
+    /* Quote Counter */
+    .quote-counter {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+    }
+    
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+      opacity: 0.3;
+    }
+    
+    .empty-title {
+      font-size: 16px;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+      color: var(--text-secondary);
+    }
+    
+    .empty-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.8;
+    }
+    
+    .empty-hint code {
+      background: var(--accent-light);
+      padding: 2px 8px;
+      color: var(--accent-color);
+    }
+    
+    /* Edit Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+    
+    .modal-overlay.active {
+      display: flex;
+    }
+    
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      width: 100%;
+      max-width: 500px;
+      padding: 30px;
+      position: relative;
+    }
+    
+    .modal::before {
+      content: '┌─ EDIT_QUOTE ─┐';
+      position: absolute;
+      top: -10px;
+      left: 20px;
+      background: var(--bg-secondary);
+      padding: 0 10px;
+      font-size: 10px;
+      color: var(--accent-color);
+      letter-spacing: 1px;
+    }
+    
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+    
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+    
+    .modal-field {
+      margin-bottom: 20px;
+    }
+    
+    .modal-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      display: block;
+    }
+    
+    .modal-input {
+      width: 100%;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      padding: 12px;
+      resize: vertical;
+    }
+    
+    .modal-input:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 25px;
+    }
+    
+    .modal-btn {
+      padding: 12px 24px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .modal-btn.primary {
+      background: var(--accent-color);
+      color: white;
+      border: none;
+    }
+    
+    .modal-btn.primary:hover {
+      opacity: 0.9;
+    }
+    
+    .modal-btn.secondary {
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+    }
+    
+    .modal-btn.secondary:hover {
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+    }
+    
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      z-index: 1000;
+    }
+    
+    .toast {
+      padding: 12px 20px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      border: 1px solid;
+      background: var(--bg-secondary);
+      animation: slideIn 0.3s ease;
+    }
+    
+    .toast.success {
+      border-color: var(--success-color);
+      color: var(--success-color);
+    }
+    
+    .toast.error {
+      border-color: var(--error-color);
+      color: var(--error-color);
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    /* Swipe Animation */
+    .quote-wrapper.swipe-left {
+      animation: swipeLeft 0.3s ease;
+    }
+    
+    .quote-wrapper.swipe-right {
+      animation: swipeRight 0.3s ease;
+    }
+    
+    @keyframes swipeLeft {
+      0% { transform: translateX(0); opacity: 1; }
+      50% { transform: translateX(-30px); opacity: 0; }
+      51% { transform: translateX(30px); opacity: 0; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes swipeRight {
+      0% { transform: translateX(0); opacity: 1; }
+      50% { transform: translateX(30px); opacity: 0; }
+      51% { transform: translateX(-30px); opacity: 0; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+    
+    /* Mobile Adjustments */
+    @media (max-width: 600px) {
+      .quote-container {
+        padding: 80px 25px 160px;
+      }
+      
+      .quote-mark {
+        font-size: 80px;
+      }
+      
+      .quote-mark.open {
+        top: -20px;
+        left: -10px;
+      }
+      
+      .quote-mark.close {
+        bottom: -60px;
+        right: -10px;
+      }
+      
+      .quote-actions {
+        opacity: 1;
+        bottom: -50px;
+      }
+      
+      .footer {
+        padding-bottom: 40px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <a href="/" class="logo">
+      <div class="logo-mark">P</div>
+      <span class="logo-text">Quotes</span>
+    </a>
+    <div class="header-actions">
+      <button class="header-btn" onclick="toggleTheme()" title="Toggle theme">◐</button>
+      <a href="/" class="header-btn" title="Back to PRNT">←</a>
+    </div>
+  </header>
+  
+  <!-- Main Quote Display -->
+  <main class="quote-container" id="quote-container">
+    <div class="quote-wrapper" id="quote-wrapper">
+      <span class="quote-mark open">"</span>
+      <p class="quote-text" id="quote-text">Loading...</p>
+      <span class="quote-mark close">"</span>
+      <p class="quote-attribution" id="quote-attribution"></p>
+      <p class="quote-source" id="quote-source"></p>
+      
+      <div class="quote-actions">
+        <button class="action-btn favorite" id="favorite-btn" onclick="toggleFavorite()" title="Favorite">♡</button>
+        <button class="action-btn edit" onclick="openEditModal()" title="Edit">✎</button>
+        <button class="action-btn delete" onclick="deleteQuote()" title="Delete">✕</button>
+      </div>
+    </div>
+  </main>
+  
+  <!-- Quote Counter -->
+  <div class="quote-counter" id="quote-counter"></div>
+  
+  <!-- Footer Controls -->
+  <footer class="footer">
+    <button class="nav-btn" onclick="previousQuote()" title="Previous">←</button>
+    <button class="random-btn" onclick="randomQuote()">Random Quote</button>
+    <button class="nav-btn" onclick="nextQuote()" title="Next">→</button>
+  </footer>
+  
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+      <button class="modal-close" onclick="closeEditModal()">×</button>
+      <div class="modal-field">
+        <label class="modal-label">Quote</label>
+        <textarea class="modal-input" id="edit-quote-text" rows="4"></textarea>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Attribution</label>
+        <input type="text" class="modal-input" id="edit-attribution" placeholder="Who said it?">
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Source</label>
+        <input type="text" class="modal-input" id="edit-source" placeholder="Book, speech, etc.">
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" onclick="closeEditModal()">Cancel</button>
+        <button class="modal-btn primary" onclick="saveEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    // ========== STATE ==========
+    let quotes = [];
+    let currentIndex = 0;
+    let currentQuote = null;
+    
+    // ========== THEME ==========
+    function initTheme() {
+      const saved = localStorage.getItem('prnt-theme');
+      if (saved === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    }
+    
+    function toggleTheme() {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      if (isLight) {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('prnt-theme', 'dark');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        localStorage.setItem('prnt-theme', 'light');
+      }
+    }
+    
+    initTheme();
+    
+    // ========== API ==========
+    async function loadQuotes() {
+      try {
+        const res = await fetch('/api/quotes');
+        const data = await res.json();
+        quotes = data.quotes || [];
+        updateCounter();
+        
+        if (quotes.length === 0) {
+          showEmptyState();
+        } else {
+          // Start with a random quote
+          randomQuote();
+        }
+      } catch (e) {
+        console.error('Failed to load quotes:', e);
+        showToast('Failed to load quotes', 'error');
+      }
+    }
+    
+    async function getRandomQuote() {
+      try {
+        const res = await fetch('/api/quotes/random');
+        const data = await res.json();
+        return data.quote;
+      } catch (e) {
+        console.error('Failed to get random quote:', e);
+        return null;
+      }
+    }
+    
+    // ========== DISPLAY ==========
+    function displayQuote(quote) {
+      if (!quote) return;
+      
+      currentQuote = quote;
+      
+      const textEl = document.getElementById('quote-text');
+      const attrEl = document.getElementById('quote-attribution');
+      const sourceEl = document.getElementById('quote-source');
+      const favBtn = document.getElementById('favorite-btn');
+      
+      textEl.textContent = quote.quote_text;
+      attrEl.textContent = quote.attribution ? `— ${quote.attribution}` : '';
+      sourceEl.textContent = quote.source || '';
+      
+      // Update favorite button
+      if (quote.favorite) {
+        favBtn.classList.add('active');
+        favBtn.textContent = '♥';
+      } else {
+        favBtn.classList.remove('active');
+        favBtn.textContent = '♡';
+      }
+      
+      updateCounter();
+    }
+    
+    function showEmptyState() {
+      const container = document.getElementById('quote-wrapper');
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">❝</div>
+          <h2 class="empty-title">NO QUOTES YET</h2>
+          <p class="empty-hint">
+            Add your first quote with:<br><br>
+            <code>$quotes The unexamined life is not worth living - Socrates</code>
+          </p>
+        </div>
+      `;
+      document.querySelector('.footer').style.display = 'none';
+      document.getElementById('quote-counter').style.display = 'none';
+    }
+    
+    function updateCounter() {
+      const counter = document.getElementById('quote-counter');
+      if (quotes.length > 0) {
+        const idx = quotes.findIndex(q => q.id === currentQuote?.id);
+        counter.textContent = `${idx + 1} / ${quotes.length}`;
+      }
+    }
+    
+    // ========== NAVIGATION ==========
+    function randomQuote() {
+      if (quotes.length === 0) return;
+      
+      const wrapper = document.getElementById('quote-wrapper');
+      wrapper.classList.add('swipe-left');
+      
+      setTimeout(() => {
+        const randomIdx = Math.floor(Math.random() * quotes.length);
+        currentIndex = randomIdx;
+        displayQuote(quotes[randomIdx]);
+        wrapper.classList.remove('swipe-left');
+      }, 150);
+    }
+    
+    function nextQuote() {
+      if (quotes.length === 0) return;
+      
+      const wrapper = document.getElementById('quote-wrapper');
+      wrapper.classList.add('swipe-left');
+      
+      setTimeout(() => {
+        currentIndex = (currentIndex + 1) % quotes.length;
+        displayQuote(quotes[currentIndex]);
+        wrapper.classList.remove('swipe-left');
+      }, 150);
+    }
+    
+    function previousQuote() {
+      if (quotes.length === 0) return;
+      
+      const wrapper = document.getElementById('quote-wrapper');
+      wrapper.classList.add('swipe-right');
+      
+      setTimeout(() => {
+        currentIndex = (currentIndex - 1 + quotes.length) % quotes.length;
+        displayQuote(quotes[currentIndex]);
+        wrapper.classList.remove('swipe-right');
+      }, 150);
+    }
+    
+    // ========== ACTIONS ==========
+    async function toggleFavorite() {
+      if (!currentQuote) return;
+      
+      try {
+        const newFav = !currentQuote.favorite;
+        const res = await fetch(`/api/quotes/${currentQuote.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ favorite: newFav })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          currentQuote.favorite = newFav;
+          
+          // Update local quotes array
+          const idx = quotes.findIndex(q => q.id === currentQuote.id);
+          if (idx !== -1) quotes[idx].favorite = newFav;
+          
+          // Update UI
+          const favBtn = document.getElementById('favorite-btn');
+          if (newFav) {
+            favBtn.classList.add('active');
+            favBtn.textContent = '♥';
+            showToast('Added to favorites');
+          } else {
+            favBtn.classList.remove('active');
+            favBtn.textContent = '♡';
+            showToast('Removed from favorites');
+          }
+        }
+      } catch (e) {
+        console.error('Failed to toggle favorite:', e);
+        showToast('Failed to update', 'error');
+      }
+    }
+    
+    async function deleteQuote() {
+      if (!currentQuote) return;
+      if (!confirm('Delete this quote?')) return;
+      
+      try {
+        // Soft delete
+        const res = await fetch(`/api/quotes/${currentQuote.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deleted: true })
+        });
+        
+        if (res.ok) {
+          // Remove from local array
+          quotes = quotes.filter(q => q.id !== currentQuote.id);
+          
+          if (quotes.length === 0) {
+            showEmptyState();
+          } else {
+            currentIndex = Math.min(currentIndex, quotes.length - 1);
+            displayQuote(quotes[currentIndex]);
+          }
+          
+          showToast('Quote deleted');
+        }
+      } catch (e) {
+        console.error('Failed to delete:', e);
+        showToast('Failed to delete', 'error');
+      }
+    }
+    
+    // ========== EDIT MODAL ==========
+    function openEditModal() {
+      if (!currentQuote) return;
+      
+      document.getElementById('edit-quote-text').value = currentQuote.quote_text;
+      document.getElementById('edit-attribution').value = currentQuote.attribution || '';
+      document.getElementById('edit-source').value = currentQuote.source || '';
+      document.getElementById('edit-modal').classList.add('active');
+    }
+    
+    function closeEditModal() {
+      document.getElementById('edit-modal').classList.remove('active');
+    }
+    
+    async function saveEdit() {
+      if (!currentQuote) return;
+      
+      const quoteText = document.getElementById('edit-quote-text').value.trim();
+      const attribution = document.getElementById('edit-attribution').value.trim() || null;
+      const source = document.getElementById('edit-source').value.trim() || null;
+      
+      if (!quoteText) {
+        showToast('Quote text is required', 'error');
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/quotes/${currentQuote.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quote_text: quoteText, attribution, source })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          // Update local data
+          currentQuote.quote_text = quoteText;
+          currentQuote.attribution = attribution;
+          currentQuote.source = source;
+          
+          const idx = quotes.findIndex(q => q.id === currentQuote.id);
+          if (idx !== -1) {
+            quotes[idx] = { ...quotes[idx], quote_text: quoteText, attribution, source };
+          }
+          
+          displayQuote(currentQuote);
+          closeEditModal();
+          showToast('Quote updated');
+        }
+      } catch (e) {
+        console.error('Failed to save:', e);
+        showToast('Failed to save', 'error');
+      }
+    }
+    
+    // ========== TOAST ==========
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+    
+    // ========== KEYBOARD & TOUCH ==========
+    document.addEventListener('keydown', (e) => {
+      if (document.getElementById('edit-modal').classList.contains('active')) {
+        if (e.key === 'Escape') closeEditModal();
+        return;
+      }
+      
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextQuote();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        previousQuote();
+      } else if (e.key === 'r' || e.key === 'R') {
+        randomQuote();
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFavorite();
+      } else if (e.key === 'e' || e.key === 'E') {
+        openEditModal();
+      }
+    });
+    
+    // Touch swipe
+    let touchStartX = 0;
+    let touchEndX = 0;
+    
+    document.getElementById('quote-container').addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+    
+    document.getElementById('quote-container').addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    }, { passive: true });
+    
+    function handleSwipe() {
+      const diff = touchStartX - touchEndX;
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) {
+          nextQuote();
+        } else {
+          previousQuote();
+        }
+      }
+    }
+    
+    // ========== INIT ==========
+    loadQuotes();
+  </script>
+</body>
+</html>

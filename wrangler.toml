@@ -6,3 +6,6 @@ pages_build_output_dir = "./"
 binding = "DB"
 database_name = "prnt-db"
 database_id = "f4974a76-0ae1-4447-8d0a-e268f1dbd4f8"  # Replace with your D1 database ID
+[ai]
+binding = "AI"
+

@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PRNT — Task Architecture System</title>
   
-  <!-- Security: Content Security Policy -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://api.anthropic.com; img-src 'self' data: https:;">
-  
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23228be6' rx='12' width='100' height='100'/><text x='50' y='68' font-family='monospace' font-size='50' font-weight='bold' fill='white' text-anchor='middle'>P</text></svg>">
   
@@ -15,11 +12,12 @@
   <meta property="og:title" content="PRNT — Task Architecture System">
   <meta property="og:description" content="A Blueprint-styled productivity app with Eisenhower matrix, shorthand commands, and Google integration.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="/og-image.svg">
+  <meta property="og:url" content="https://prnt.abelinkinbio.com">
+  <meta property="og:image" content="https://prnt.abelinkinbio.com/og-image.svg">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="PRNT — Task Architecture System">
   <meta name="twitter:description" content="A Blueprint-styled productivity app with Eisenhower matrix, shorthand commands, and Google integration.">
-  <meta name="twitter:image" content="/og-image.svg">
+  <meta name="twitter:image" content="https://prnt.abelinkinbio.com/og-image.svg">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,6 +41,8 @@
       --success-color: #40c057;
       --warning-color: #fab005;
       --error-color: #e03131;
+      --command-color: #ae3ec9;
+      --command-light: rgba(174, 62, 201, 0.1);
       --font-mono: 'JetBrains Mono', monospace;
     }
     [data-theme="dark"] {
@@ -63,6 +63,8 @@
       --success-color: #51cf66;
       --warning-color: #fcc419;
       --error-color: #ff6b6b;
+      --command-color: #da77f2;
+      --command-light: rgba(218, 119, 242, 0.15);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     *:focus { outline: 2px solid var(--accent-color); outline-offset: 2px; }
@@ -183,6 +185,9 @@
     }
     .main-input:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px var(--accent-light); }
     .main-input::placeholder { color: var(--text-muted); }
+    /* Command mode styling — changes border to purple when typing $command */
+    .main-input.command-mode { border-color: var(--command-color); }
+    .main-input.command-mode:focus { box-shadow: 0 0 0 3px var(--command-light); }
     
     /* Live Preview */
     .live-preview {
@@ -194,7 +199,12 @@
       display: none;
     }
     .live-preview.active { display: block; }
+    .live-preview.command-mode {
+      background: var(--command-light);
+      border-color: var(--command-color);
+    }
     .preview-label { color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-size: 9px; }
+    .live-preview.command-mode .preview-label { color: var(--command-color); }
     .preview-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
     .preview-tag { padding: 2px 6px; background: var(--bg-secondary); border: 1px solid var(--border-color); font-size: 9px; }
     .preview-tag.priority { border-color: var(--priority-p0); color: var(--priority-p0); }
@@ -204,6 +214,7 @@
     .preview-tag.date { border-color: var(--success-color); color: var(--success-color); }
     .preview-tag.tag { border-color: var(--accent-color); color: var(--accent-color); }
     .preview-tag.type { border-color: var(--text-muted); color: var(--text-muted); }
+    .preview-tag.command { border-color: var(--command-color); color: var(--command-color); font-weight: 600; }
     
     /* Type-ahead Suggestions */
     .suggestions-dropdown {
@@ -221,6 +232,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     .suggestions-dropdown.active { display: block; }
+    .suggestions-dropdown.command-mode { border-color: var(--command-color); }
     .suggestion-item {
       padding: 10px 12px;
       cursor: pointer;
@@ -230,6 +242,8 @@
     .suggestion-item:hover, .suggestion-item.selected { background: var(--accent-light); }
     .suggestion-item:last-child { border-bottom: none; }
     .suggestion-syntax { font-weight: 600; color: var(--accent-color); }
+    .suggestion-item.command-suggestion .suggestion-syntax { color: var(--command-color); }
+    .suggestion-item.command-suggestion:hover, .suggestion-item.command-suggestion.selected { background: var(--command-light); }
     .suggestion-desc { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
     
     .input-hint { font-size: 9px; color: var(--text-muted); margin-top: 8px; }
@@ -265,6 +279,11 @@
       transition: all 0.2s;
     }
     .ref-cmd:hover { border-color: var(--accent-color); }
+    .ref-cmd.command-ref {
+      background: var(--command-light);
+      color: var(--command-color);
+    }
+    .ref-cmd.command-ref:hover { border-color: var(--command-color); }
     
     /* Markdown Reference */
     .ref-group.markdown .ref-cmd { font-size: 10px; }
@@ -557,6 +576,44 @@
     .note-item:hover .note-actions { opacity: 1; }
     .note-timestamp { font-size: 9px; color: var(--text-muted); }
     
+    /* Bookmarks View */
+    .bookmarks-container { height: 100%; overflow-y: auto; }
+    .bookmark-item {
+      padding: 15px;
+      border: 1px solid var(--border-color);
+      border-left: 3px solid var(--command-color);
+      margin-bottom: 10px;
+      background: var(--bg-secondary);
+      position: relative;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .bookmark-item:hover { border-color: var(--command-color); }
+    .bookmark-url {
+      font-size: 12px;
+      color: var(--accent-color);
+      text-decoration: none;
+      word-break: break-all;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .bookmark-url:hover { text-decoration: underline; }
+    .bookmark-note {
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 6px;
+    }
+    .bookmark-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .bookmark-source {
+      font-size: 8px;
+      padding: 2px 6px;
+      background: var(--command-light);
+      color: var(--command-color);
+    }
+    .bookmark-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
+    .bookmark-item:hover .bookmark-actions { opacity: 1; }
+    
     /* Wrapped View */
     .wrapped-container { height: 100%; overflow-y: auto; }
     .wrapped-header { margin-bottom: 25px; }
@@ -653,7 +710,7 @@
       <div class="input-terminal">
         <div class="terminal-label">Input Terminal</div>
         <div class="input-wrapper">
-          <textarea class="main-input" id="main-input" placeholder="Add task or note..." rows="1"></textarea>
+          <textarea class="main-input" id="main-input" placeholder="Add task, note, or $command..." rows="1"></textarea>
           <div class="suggestions-dropdown" id="suggestions-dropdown"></div>
         </div>
         <div class="live-preview" id="live-preview">
@@ -661,11 +718,18 @@
           <div class="preview-content" id="preview-content"></div>
           <div class="preview-tags" id="preview-tags"></div>
         </div>
-        <div class="input-hint">Enter to add • Shift+Enter for newline • Type @ # p or / for hints</div>
+        <div class="input-hint">Enter to add • Shift+Enter for newline • Type @ # p $ or / for hints</div>
       </div>
       
       <div class="command-reference">
         <div class="ref-label">Quick Reference</div>
+        
+        <div class="ref-group" id="commands-ref-group">
+          <div class="ref-group-title">$commands</div>
+          <div class="ref-items" id="commands-ref-items">
+            <span class="ref-cmd command-ref" onclick="insertCmd('$bookmark ')">$bookmark</span>
+          </div>
+        </div>
         
         <div class="ref-group">
           <div class="ref-group-title">Priority</div>
@@ -708,7 +772,7 @@
       </div>
       
       <div class="sidebar-footer">
-        <button class="theme-toggle" onclick="toggleTheme()">◐ Toggle Theme</button>
+        <button class="theme-toggle" onclick="toggleTheme()">◑ Toggle Theme</button>
       </div>
     </aside>
     
@@ -718,6 +782,7 @@
         <button class="tab-btn active" data-view="matrix">Matrix<span class="tab-count" id="matrix-count">0</span></button>
         <button class="tab-btn" data-view="list">List<span class="tab-count" id="list-count">0</span></button>
         <button class="tab-btn" data-view="notes">Notes<span class="tab-count" id="notes-count">0</span></button>
+        <button class="tab-btn" data-view="bookmarks">Bookmarks<span class="tab-count" id="bookmarks-count">0</span></button>
         <button class="tab-btn" data-view="wrapped">Wrapped</button>
       </div>
       
@@ -772,6 +837,11 @@
       <!-- Notes View -->
       <div class="view-container" id="notes-view">
         <div class="notes-container" id="notes-container"></div>
+      </div>
+      
+      <!-- Bookmarks View -->
+      <div class="view-container" id="bookmarks-view">
+        <div class="bookmarks-container" id="bookmarks-container"></div>
       </div>
       
       <!-- Wrapped View -->
@@ -849,15 +919,35 @@
   <div class="toast-container" id="toast-container"></div>
 
   <script>
+    // ============================================
+    // PRNT — Frontend Application
+    // ============================================
+    //
+    // KEY CHANGE (Plugin System):
+    // The input terminal now sends RAW TEXT to the server
+    // via POST /api/input, and the server's plugin router
+    // handles parsing and dispatch. This means:
+    //
+    // 1. $commands work from the web app (not just external channels)
+    // 2. There's one parser (server-side), not two
+    // 3. The client-side preview parser is kept for UX only
+    //
+    // Everything else (matrix, list, notes, wrapped, drag-and-drop,
+    // edit modal, theme, Google status) is preserved exactly.
+    // ============================================
+
     const API_BASE = '/api';
     let items = [];
+    let bookmarks = [];
+    let availableCommands = [];
     let currentView = 'matrix';
     let googleConnected = false;
     let activeTagFilter = null;
     let lastDeletedItem = null;
     let selectedSuggestion = -1;
 
-    // Suggestions data
+    // Suggestions data — includes the existing shorthand hints
+    // plus dynamic $command hints loaded from the server
     const suggestions = {
       '@': [
         { syntax: '@today', desc: 'Due today' },
@@ -882,6 +972,8 @@
       '/': [
         { syntax: '/t', desc: 'Force item to be a task' },
       ],
+      // $command suggestions are populated dynamically from GET /api/commands
+      '$': [],
       '*': [
         { syntax: '**text**', desc: 'Bold text' },
         { syntax: '*text*', desc: 'Italic text' },
@@ -945,21 +1037,54 @@
     }
     window.handleGoogleClick = handleGoogleClick;
 
+    // ========== LOAD AVAILABLE COMMANDS ==========
+    // Fetches the list of $commands from the server.
+    // This populates the $ autocomplete and the Quick Reference sidebar.
+    async function loadCommands() {
+      try {
+        const res = await fetch(`${API_BASE}/commands`);
+        const data = await res.json();
+        availableCommands = (data.commands || []).filter(c => !c.isDefault);
+
+        // Populate $ suggestions for autocomplete
+        suggestions['$'] = availableCommands.map(cmd => ({
+          syntax: '$' + cmd.name,
+          desc: cmd.description,
+          isCommand: true
+        }));
+
+        // Update Quick Reference sidebar
+        const refItems = document.getElementById('commands-ref-items');
+        if (refItems && availableCommands.length > 0) {
+          refItems.innerHTML = availableCommands.map(cmd =>
+            `<span class="ref-cmd command-ref" onclick="insertCmd('$${cmd.name} ')" title="${cmd.description}">$${cmd.name}</span>`
+          ).join('');
+        }
+      } catch (e) {
+        console.error('Failed to load commands:', e);
+      }
+    }
+
     // ========== SUGGESTIONS ==========
     function showSuggestions(trigger) {
       const items = suggestions[trigger] || [];
       if (items.length === 0) { hideSuggestions(); return; }
-      suggestionsDropdown.innerHTML = items.map((s, i) => 
-        `<div class="suggestion-item" data-index="${i}" onclick="applySuggestion('${s.syntax}')">
+
+      const isCommandMode = trigger === '$';
+      suggestionsDropdown.innerHTML = items.map((s, i) =>
+        `<div class="suggestion-item ${s.isCommand ? 'command-suggestion' : ''}" data-index="${i}" onclick="applySuggestion('${s.syntax}')">
           <div class="suggestion-syntax">${s.syntax}</div>
           <div class="suggestion-desc">${s.desc}</div>
         </div>`
       ).join('');
       suggestionsDropdown.classList.add('active');
+      if (isCommandMode) suggestionsDropdown.classList.add('command-mode');
+      else suggestionsDropdown.classList.remove('command-mode');
       selectedSuggestion = -1;
     }
     function hideSuggestions() {
       suggestionsDropdown.classList.remove('active');
+      suggestionsDropdown.classList.remove('command-mode');
       selectedSuggestion = -1;
     }
     function applySuggestion(syntax) {
@@ -967,7 +1092,7 @@
       const pos = mainInput.selectionStart;
       // Find the trigger character position
       let triggerPos = pos - 1;
-      while (triggerPos >= 0 && !/[\s@#/p*`\[]/.test(val[triggerPos])) triggerPos--;
+      while (triggerPos >= 0 && !/[\s@#/$p*`\[]/.test(val[triggerPos])) triggerPos--;
       if (triggerPos < 0) triggerPos = 0;
       const before = val.substring(0, triggerPos);
       const after = val.substring(pos);
@@ -989,25 +1114,60 @@
     }
 
     // ========== LIVE PREVIEW ==========
+    // Detects $commands and shows appropriate preview.
+    // For regular input, uses the existing client-side parser.
     function updateLivePreview() {
       const val = mainInput.value.trim();
-      if (!val) { livePreview.classList.remove('active'); return; }
-      
+      if (!val) {
+        livePreview.classList.remove('active', 'command-mode');
+        mainInput.classList.remove('command-mode');
+        return;
+      }
+
+      // Check for $command prefix
+      const cmdMatch = val.match(/^\$(\w+)\s*([\s\S]*)/);
+      if (cmdMatch) {
+        const cmdName = cmdMatch[1].toLowerCase();
+        const cmdContent = cmdMatch[2].trim();
+        const knownCmd = availableCommands.find(c => c.name === cmdName);
+
+        // Enter command mode — purple border and preview
+        mainInput.classList.add('command-mode');
+        livePreview.classList.add('active', 'command-mode');
+
+        let tags = [{ type: 'command', text: '$' + cmdName }];
+
+        // Extract #tags from the content for preview
+        const tagMatches = cmdContent.match(/#(\w+)/g);
+        if (tagMatches) tagMatches.forEach(t => tags.push({ type: 'tag', text: t }));
+
+        previewContent.textContent = cmdContent || (knownCmd ? knownCmd.syntax : '(type content after $command)');
+        previewTags.innerHTML = tags.map(t =>
+          `<span class="preview-tag ${t.type}">${t.text}</span>`
+        ).join('');
+
+        return;
+      }
+
+      // No $command — use existing task/note preview parser
+      mainInput.classList.remove('command-mode');
+      livePreview.classList.remove('command-mode');
+
       const parsed = parseInput(val);
       let tags = [];
-      
+
       if (parsed.type === 'task') tags.push({ type: 'type', text: 'TASK' });
       else tags.push({ type: 'type', text: 'NOTE' });
-      
+
       if (parsed.priority !== null) tags.push({ type: 'priority', text: 'P' + parsed.priority, p: parsed.priority });
       if (parsed.due_date) tags.push({ type: 'date', text: parsed.due_date });
       parsed.tags.forEach(t => tags.push({ type: 'tag', text: '#' + t }));
-      
+
       previewContent.textContent = parsed.content || '(empty content)';
-      previewTags.innerHTML = tags.map(t => 
+      previewTags.innerHTML = tags.map(t =>
         `<span class="preview-tag ${t.type}" ${t.p !== undefined ? `data-p="${t.p}"` : ''}>${t.text}</span>`
       ).join('');
-      
+
       livePreview.classList.add('active');
     }
 
@@ -1015,22 +1175,43 @@
     mainInput.addEventListener('input', function() {
       this.style.height = 'auto';
       this.style.height = Math.min(this.scrollHeight, 150) + 'px';
-      
+
       const val = this.value;
       const pos = this.selectionStart;
       const lastChar = val[pos - 1];
       const wordStart = val.lastIndexOf(' ', pos - 2) + 1;
       const currentWord = val.substring(wordStart, pos);
-      
+
       // Check for triggers
-      if (['@', '#', '/', '*', '`', '['].includes(lastChar)) {
+      if (lastChar === '$' && (pos === 1 || val[pos - 2] === ' ' || val[pos - 2] === '\n')) {
+        // $ at start of input or after whitespace → show command suggestions
+        showSuggestions('$');
+      } else if (['@', '#', '/', '*', '`', '['].includes(lastChar)) {
         showSuggestions(lastChar);
       } else if (currentWord.match(/^p[0-3]?$/i) && (lastChar === 'p' || /[0-3]/.test(lastChar))) {
         showSuggestions('p');
+      } else if (currentWord.startsWith('$') && currentWord.length > 1) {
+        // Typing a $command name — filter suggestions
+        const partial = currentWord.substring(1).toLowerCase();
+        const filtered = availableCommands
+          .filter(c => c.name.startsWith(partial))
+          .map(c => ({ syntax: '$' + c.name, desc: c.description, isCommand: true }));
+        if (filtered.length > 0) {
+          suggestionsDropdown.innerHTML = filtered.map((s, i) =>
+            `<div class="suggestion-item command-suggestion" data-index="${i}" onclick="applySuggestion('${s.syntax}')">
+              <div class="suggestion-syntax">${s.syntax}</div>
+              <div class="suggestion-desc">${s.desc}</div>
+            </div>`
+          ).join('');
+          suggestionsDropdown.classList.add('active', 'command-mode');
+          selectedSuggestion = -1;
+        } else {
+          hideSuggestions();
+        }
       } else {
         hideSuggestions();
       }
-      
+
       updateLivePreview();
     });
 
@@ -1050,16 +1231,21 @@
         }
         if (e.key === 'Escape') { hideSuggestions(); return; }
       }
-      
+
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         const val = mainInput.value.trim();
         if (!val) return;
-        const parsed = parseInput(val);
-        await createItem(parsed);
+
+        // ── KEY CHANGE: Send raw text to the server ──
+        // The server's plugin router handles parsing and dispatch.
+        // This is how $commands work from the web app.
+        await submitRawInput(val);
+
         mainInput.value = '';
         mainInput.style.height = 'auto';
-        livePreview.classList.remove('active');
+        mainInput.classList.remove('command-mode');
+        livePreview.classList.remove('active', 'command-mode');
         hideSuggestions();
       }
     });
@@ -1074,7 +1260,56 @@
     }
     window.insertCmd = insertCmd;
 
-    // ========== PARSER ==========
+    // ========== SUBMIT RAW INPUT ==========
+    // Sends raw text to POST /api/input (the plugin router).
+    // The server decides what to do with it: task, note, bookmark, etc.
+    async function submitRawInput(rawText) {
+      try {
+        const res = await fetch(`${API_BASE}/input`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raw: rawText, source: 'web' })
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          showToast(data.error, 'error');
+          return;
+        }
+
+        // Route the response to the right local data store
+        const command = data.command || 'default';
+
+        if (command === 'default' && data.item) {
+          // It's a task or note — add to items array
+          items.unshift(data.item);
+          render();
+          updateStats();
+          showToast(`${data.item.type === 'task' ? 'Task' : 'Note'} added`);
+        } else if (command === 'bookmark' && data.item) {
+          // It's a bookmark — add to bookmarks array
+          bookmarks.unshift(data.item);
+          render();
+          updateStats();
+          showToast(data.message || 'Bookmark saved');
+        } else if (data.item) {
+          // Unknown command that returned an item — reload everything
+          showToast(data.message || 'Item added');
+          await loadItems();
+          await loadBookmarks();
+        } else {
+          showToast(data.message || 'Done');
+        }
+      } catch (e) {
+        console.error('Submit error:', e);
+        showToast('Failed to submit', 'error');
+      }
+    }
+
+    // ========== CLIENT-SIDE PARSER (for live preview only) ==========
+    // This is a lightweight copy of the server-side parser.
+    // It only runs in the browser for the live preview UX.
+    // The REAL parsing always happens server-side.
     function parseInput(raw) {
       let content = raw.trim();
       let type = 'note';
@@ -1084,13 +1319,13 @@
       const tags = [];
 
       if (content.includes('/t')) { type = 'task'; content = content.replace(/\/t\s*/g, ''); }
-      
+
       const pMatch = content.match(/\bp([0-3])\b/i);
       if (pMatch) { priority = parseInt(pMatch[1]); content = content.replace(/\bp[0-3]\b/gi, ''); }
-      
+
       const tagMatches = content.match(/#(\w+)/g);
       if (tagMatches) { tagMatches.forEach(t => tags.push(t.substring(1).toLowerCase())); content = content.replace(/#\w+/g, ''); }
-      
+
       const now = new Date();
       const lisbon = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' });
       const parts = lisbon.formatToParts(now);
@@ -1100,7 +1335,7 @@
       if (content.match(/@eod\b/i)) { dueDate = fmtDate(lisbonDate); dueTime = '18:00'; content = content.replace(/@eod\b/gi, ''); type = 'task'; }
       if (content.match(/@(tomorrow|tmrw)\b/i)) { const d = new Date(lisbonDate); d.setDate(d.getDate() + 1); dueDate = fmtDate(d); content = content.replace(/@(tomorrow|tmrw)\b/gi, ''); type = 'task'; }
       if (content.match(/@(friday|eow)\b/i)) { const d = new Date(lisbonDate); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7)); dueDate = fmtDate(d); content = content.replace(/@(friday|eow)\b/gi, ''); type = 'task'; }
-      
+
       const dateMatch = content.match(/@([a-z]{3})-(\d{1,2})\b/i);
       if (dateMatch) {
         const months = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
@@ -1113,35 +1348,19 @@
           type = 'task';
         }
       }
-      
+
       content = content.replace(/\s+/g, ' ').trim();
       return { content, raw_input: raw, type, priority, due_date: dueDate, due_time: dueTime, tags };
     }
 
     function fmtDate(d) { return d.toISOString().split('T')[0]; }
-    
-    // Escape HTML to prevent XSS attacks
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-    
+
     function parseMarkdown(text) {
-      // First escape HTML to prevent XSS
-      let safe = escapeHtml(text);
-      
-      // Then apply markdown transformations on escaped text
-      safe = safe
+      return text
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/`(.+?)`/g, '<code style="background:var(--accent-light);padding:1px 4px;">$1</code>');
-      
-      // Safe link parsing - only allow http/https URLs
-      safe = safe.replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, 
-        '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent-color)">$1</a>');
-      
-      return safe;
+        .replace(/`(.+?)`/g, '<code style="background:var(--accent-light);padding:1px 4px;">$1</code>')
+        .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" style="color:var(--accent-color)">$1</a>');
     }
 
     function timeAgo(dateStr) {
@@ -1163,29 +1382,22 @@
         items = (data.items || []).filter(i => !i.deleted);
         render();
         updateStats();
-        document.getElementById('loading-skeleton').classList.add('hidden');
       } catch (e) {
         console.error('Load error:', e);
         showToast('Failed to load items', 'error');
-        document.getElementById('loading-skeleton').classList.add('hidden');
       }
     }
 
-    async function createItem(parsed) {
+    async function loadBookmarks() {
       try {
-        const res = await fetch(`${API_BASE}/items`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(parsed)
-        });
+        const res = await fetch(`${API_BASE}/bookmarks`);
         const data = await res.json();
-        items.unshift(data.item);
+        bookmarks = data.bookmarks || [];
         render();
         updateStats();
-        showToast(`${data.item.type === 'task' ? 'Task' : 'Note'} added`);
       } catch (e) {
-        console.error('Create error:', e);
-        showToast('Failed to create item', 'error');
+        console.error('Load bookmarks error:', e);
+        // Not critical — bookmarks tab just won't have data
       }
     }
 
@@ -1227,6 +1439,20 @@
     }
     window.deleteItem = deleteItem;
 
+    async function deleteBookmark(id) {
+      try {
+        await fetch(`${API_BASE}/bookmarks?id=${id}`, { method: 'DELETE' });
+        bookmarks = bookmarks.filter(b => b.id !== id);
+        render();
+        updateStats();
+        showToast('Bookmark deleted');
+      } catch (e) {
+        console.error('Delete bookmark error:', e);
+        showToast('Failed to delete bookmark', 'error');
+      }
+    }
+    window.deleteBookmark = deleteBookmark;
+
     async function undoDelete() {
       if (!lastDeletedItem) return;
       try {
@@ -1256,7 +1482,6 @@
       activeTagFilter = tag;
       document.getElementById('tag-filter-bar').classList.add('active');
       document.getElementById('filter-tag-name').textContent = '#' + tag;
-      // Switch to list view
       switchView('list');
       render();
     }
@@ -1294,21 +1519,20 @@
       const dueDate = document.getElementById('edit-due-date').value || null;
       const tagsStr = document.getElementById('edit-tags').value;
       const tags = tagsStr ? tagsStr.split(',').map(t => t.trim().toLowerCase()).filter(t => t) : [];
-      
+
       const updates = {
         content,
         priority: priorityVal !== '' ? parseInt(priorityVal) : null,
         due_date: dueDate,
         tags
       };
-      
+
       await updateItem(id, updates);
       closeEditModal();
       showToast('Item updated');
     }
     window.saveEdit = saveEdit;
 
-    // Close modal on escape
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && document.getElementById('edit-modal').classList.contains('active')) {
         closeEditModal();
@@ -1320,6 +1544,7 @@
       if (currentView === 'matrix') renderMatrix();
       else if (currentView === 'list') renderList();
       else if (currentView === 'notes') renderNotes();
+      else if (currentView === 'bookmarks') renderBookmarks();
       else if (currentView === 'wrapped') renderWrapped();
     }
 
@@ -1367,7 +1592,7 @@
       const tasks = items.filter(i => i.type === 'task' && !i.completed);
       const quadrants = { 0: [], 1: [], 2: [], 3: [] };
       tasks.forEach(t => { if (t.priority !== null) quadrants[t.priority].push(t); });
-      
+
       [0,1,2,3].forEach(p => {
         const container = document.getElementById(`p${p}-items`);
         document.getElementById(`p${p}-count`).textContent = quadrants[p].length;
@@ -1377,7 +1602,7 @@
           container.innerHTML = quadrants[p].map(t => renderTaskItem(t)).join('');
         }
       });
-      
+
       setupDragAndDrop();
     }
 
@@ -1387,7 +1612,7 @@
       const overdue = isOverdue(task.due_date) && !task.completed;
       const tagsHtml = (task.tags || []).map(t => `<span class="task-tag" onclick="filterByTag('${t}')">#${t}</span>`).join('');
       const completedClass = task.completed ? 'completed' : '';
-      
+
       return `
         <div class="task-item ${completedClass} ${overdue ? 'overdue' : ''}" draggable="true" data-id="${task.id}" data-priority="${task.priority}">
           <div class="task-content">${parseMarkdown(task.content)}</div>
@@ -1409,7 +1634,7 @@
       let tasks = items.filter(i => i.type === 'task');
       if (activeTagFilter) tasks = tasks.filter(t => (t.tags || []).includes(activeTagFilter));
       const container = document.getElementById('list-container');
-      
+
       const labels = {
         0: { name: 'P0_QUADRANT', desc: 'Urgent + Important' },
         1: { name: 'P1_QUADRANT', desc: 'Important, Not Urgent' },
@@ -1417,7 +1642,7 @@
         3: { name: 'P3_QUADRANT', desc: 'Neither' },
         null: { name: 'UNASSIGNED', desc: 'No Priority' }
       };
-      
+
       let html = '';
       [0,1,2,3,null].forEach(p => {
         const pTasks = tasks.filter(t => (t.priority ?? null) === p);
@@ -1430,7 +1655,7 @@
           ${pTasks.map(t => renderListItem(t)).join('')}
         </div>`;
       });
-      
+
       container.innerHTML = html || '<div class="empty-state"><div class="empty-icon">○</div><div class="empty-text">No tasks yet</div><div class="empty-hint">Add one above!</div></div>';
     }
 
@@ -1440,7 +1665,7 @@
       const overdue = isOverdue(task.due_date) && !task.completed;
       const tagsHtml = (task.tags || []).map(t => `<span class="task-tag" onclick="filterByTag('${t}')">#${t}</span>`).join('');
       const completedClass = task.completed ? 'completed' : '';
-      
+
       return `
         <div class="list-item ${completedClass} ${overdue ? 'overdue' : ''}" data-id="${task.id}" data-priority="${task.priority}">
           <div class="list-checkbox ${completedClass}" onclick="toggleComplete('${task.id}')">${task.completed ? '✓' : ''}</div>
@@ -1463,12 +1688,12 @@
     function renderNotes() {
       const notes = items.filter(i => i.type === 'note');
       const container = document.getElementById('notes-container');
-      
+
       if (notes.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">○</div><div class="empty-text">No notes yet</div><div class="empty-hint">Add a note without any @ or p commands</div></div>';
         return;
       }
-      
+
       container.innerHTML = notes.map(note => {
         const tagsHtml = (note.tags || []).map(t => `<span class="task-tag">#${t}</span>`).join('');
         return `
@@ -1487,17 +1712,55 @@
       }).join('');
     }
 
+    // ========== BOOKMARKS VIEW (NEW) ==========
+    function renderBookmarks() {
+      const container = document.getElementById('bookmarks-container');
+
+      if (bookmarks.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">○</div><div class="empty-text">No bookmarks yet</div><div class="empty-hint">Try: $bookmark https://example.com — great article</div></div>';
+        return;
+      }
+
+      container.innerHTML = bookmarks.map(bk => {
+        const tagsHtml = (bk.tags || []).map(t => `<span class="task-tag" onclick="filterByTag('${t}')">#${t}</span>`).join('');
+        // Truncate long URLs for display
+        let displayUrl = bk.url;
+        try {
+          const u = new URL(bk.url);
+          displayUrl = u.hostname + (u.pathname !== '/' ? u.pathname : '');
+          if (displayUrl.length > 60) displayUrl = displayUrl.substring(0, 57) + '...';
+        } catch (e) {
+          // Not a valid URL — show as-is
+        }
+
+        return `
+          <div class="bookmark-item" data-id="${bk.id}">
+            <a class="bookmark-url" href="${bk.url}" target="_blank" rel="noopener">${displayUrl}</a>
+            ${bk.note ? `<div class="bookmark-note">${parseMarkdown(bk.note)}</div>` : ''}
+            <div class="bookmark-meta">
+              ${tagsHtml}
+              ${bk.source && bk.source !== 'web' ? `<span class="bookmark-source">via ${bk.source}</span>` : ''}
+              <span class="task-timestamp">${timeAgo(bk.created_at)}</span>
+            </div>
+            <div class="bookmark-actions">
+              <button class="list-btn delete" onclick="deleteBookmark('${bk.id}')">✕</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
     // ========== WRAPPED VIEW ==========
     function renderWrapped() {
       const allItems = items;
       const tasks = allItems.filter(i => i.type === 'task');
       const completed = tasks.filter(t => t.completed);
-      
+
       document.getElementById('total-created').textContent = tasks.length;
       document.getElementById('total-completed').textContent = completed.length;
       document.getElementById('completion-rate').textContent = tasks.length > 0 ? Math.round((completed.length / tasks.length) * 100) + '%' : '0%';
       document.getElementById('current-streak').textContent = calculateStreak(allItems);
-      
+
       renderCommitGraph(allItems);
     }
 
@@ -1528,12 +1791,12 @@
         if (i.created_at) { const d = i.created_at.split('T')[0]; activity[d] = (activity[d] || 0) + 1; }
         if (i.completed && i.updated_at) { const d = i.updated_at.split('T')[0]; activity[d] = (activity[d] || 0) + 1; }
       });
-      
+
       const today = new Date();
       const start = new Date(today); start.setDate(start.getDate() - 364 - start.getDay());
       const weeks = [], months = [];
       let currentMonth = -1;
-      
+
       for (let w = 0; w < 53; w++) {
         const week = [];
         for (let d = 0; d < 7; d++) {
@@ -1550,13 +1813,13 @@
         }
         weeks.push(week);
       }
-      
+
       monthsEl.innerHTML = months.map((m, i) => {
         const next = months[i + 1];
         const width = next ? (next.week - m.week) * 13 : 52;
         return `<span class="commit-month" style="width:${width}px">${m.name}</span>`;
       }).join('');
-      
+
       weeksEl.innerHTML = weeks.map(w => `<div class="commit-week">${w.map(d => {
         if (!d.date) return '<div class="commit-cell"></div>';
         const lvl = d.count === 0 ? 0 : d.count <= 2 ? 1 : d.count <= 4 ? 2 : d.count <= 6 ? 3 : 4;
@@ -1588,7 +1851,7 @@
         el.addEventListener('dragstart', e => { draggedItem = e.target; e.target.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
         el.addEventListener('dragend', e => { e.target.classList.remove('dragging'); document.querySelectorAll('.matrix-quadrant').forEach(q => q.classList.remove('drag-over')); draggedItem = null; });
       });
-      
+
       document.querySelectorAll('.matrix-quadrant').forEach(q => {
         q.addEventListener('dragover', e => { e.preventDefault(); q.classList.add('drag-over'); });
         q.addEventListener('dragleave', () => q.classList.remove('drag-over'));
@@ -1609,21 +1872,22 @@
       const notes = items.filter(i => i.type === 'note');
       const active = tasks.filter(t => !t.completed);
       const completed = tasks.filter(t => t.completed);
-      
+
       const now = new Date();
       const lisbon = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' });
       const parts = lisbon.formatToParts(now);
       const todayStr = `${parts.find(p => p.type === 'year').value}-${parts.find(p => p.type === 'month').value}-${parts.find(p => p.type === 'day').value}`;
       const dueToday = tasks.filter(t => !t.completed && t.due_date === todayStr).length;
-      
+
       document.getElementById('active-count').textContent = active.length;
       document.getElementById('due-today-count').textContent = dueToday;
       document.getElementById('completed-count').textContent = completed.length;
-      
+
       // Tab counts
       document.getElementById('matrix-count').textContent = active.filter(t => t.priority !== null).length;
       document.getElementById('list-count').textContent = active.length;
       document.getElementById('notes-count').textContent = notes.length;
+      document.getElementById('bookmarks-count').textContent = bookmarks.length;
     }
 
     // ========== TOAST ==========
@@ -1657,17 +1921,25 @@
         e.preventDefault();
         mainInput.focus();
       }
-      // Cmd/Ctrl + 1-4 to switch tabs
-      if ((e.metaKey || e.ctrlKey) && ['1','2','3','4'].includes(e.key)) {
+      // Cmd/Ctrl + 1-5 to switch tabs
+      if ((e.metaKey || e.ctrlKey) && ['1','2','3','4','5'].includes(e.key)) {
         e.preventDefault();
-        const views = ['matrix', 'list', 'notes', 'wrapped'];
+        const views = ['matrix', 'list', 'notes', 'bookmarks', 'wrapped'];
         switchView(views[parseInt(e.key) - 1]);
       }
     });
 
     // ========== INIT ==========
-    loadItems();
-    checkGoogleStatus();
+    async function init() {
+      await Promise.all([
+        loadItems(),
+        loadBookmarks(),
+        loadCommands(),
+        checkGoogleStatus()
+      ]);
+      document.getElementById('loading-skeleton').classList.add('hidden');
+    }
+    init();
   </script>
 </body>
 </html>
