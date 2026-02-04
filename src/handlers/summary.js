@@ -1,49 +1,33 @@
 // ============================================
-// PRNT API - AI Summary Endpoint
-// Generates weekly productivity summaries
+// PRNT — AI Summary Handler
 // ============================================
+// Replaces: functions/api/summary.js
+// Route:    POST /api/summary
 
-// Helper: CORS headers
-function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json'
-  };
-}
+import { jsonResponse } from '../utils.js';
 
-// Handle OPTIONS (CORS preflight)
-export async function onRequestOptions() {
-  return new Response(null, { headers: corsHeaders() });
-}
-
-// POST /api/summary - Generate AI summary
-export async function onRequestPost(context) {
-  const { env } = context;
-
+export async function handleSummary(env) {
   try {
-    // Get tasks from the last 7 days
+    // Get items from the last 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString();
 
-    // Get recent items
     const recentItems = await env.DB.prepare(`
       SELECT * FROM items 
       WHERE created_at >= ? OR updated_at >= ?
       ORDER BY created_at DESC
     `).bind(sevenDaysAgoStr, sevenDaysAgoStr).all();
 
-    // Get all tags for these items
+    // Get tags for recent items
     const itemIds = recentItems.results.map(i => i.id);
     let tagsByItem = {};
-    
+
     if (itemIds.length > 0) {
-      const tagsResult = await env.DB.prepare(`
-        SELECT item_id, tag FROM tags WHERE item_id IN (${itemIds.map(() => '?').join(',')})
-      `).bind(...itemIds).all();
-      
+      const tagsResult = await env.DB.prepare(
+        `SELECT item_id, tag FROM tags WHERE item_id IN (${itemIds.map(() => '?').join(',')})`
+      ).bind(...itemIds).all();
+
       for (const row of tagsResult.results) {
         if (!tagsByItem[row.item_id]) tagsByItem[row.item_id] = [];
         tagsByItem[row.item_id].push(row.tag);
@@ -61,13 +45,25 @@ export async function onRequestPost(context) {
       return new Date(t.due_date) < new Date();
     });
 
-    // Get unique tags used this week
     const allTags = new Set();
     for (const tags of Object.values(tagsByItem)) {
       tags.forEach(t => allTags.add(t));
     }
 
-    // Build context for AI
+    // If no Anthropic API key, return basic summary
+    if (!env.ANTHROPIC_API_KEY) {
+      const completionRate = tasks.length > 0
+        ? Math.round((completedTasks.length / tasks.length) * 100)
+        : 0;
+
+      return jsonResponse({
+        summary: `This week: ${tasks.length} tasks created, ${completedTasks.length} completed (${completionRate}% completion rate). ${p0Tasks.length} urgent tasks, ${overdueTasks.length} overdue. Most used tags: ${Array.from(allTags).slice(0, 5).join(', ') || 'none'}.`,
+        generated_at: new Date().toISOString(),
+        ai_powered: false
+      });
+    }
+
+    // Build context for Claude
     const taskSummaries = tasks.slice(0, 20).map(t => ({
       content: t.content,
       priority: t.priority,
@@ -76,21 +72,6 @@ export async function onRequestPost(context) {
       tags: tagsByItem[t.id] || []
     }));
 
-    // Check if ANTHROPIC_API_KEY is configured
-    if (!env.ANTHROPIC_API_KEY) {
-      // Return a basic summary without AI
-      const completionRate = tasks.length > 0 
-        ? Math.round((completedTasks.length / tasks.length) * 100) 
-        : 0;
-      
-      return new Response(JSON.stringify({
-        summary: `This week: ${tasks.length} tasks created, ${completedTasks.length} completed (${completionRate}% completion rate). ${p0Tasks.length} urgent tasks, ${overdueTasks.length} overdue. Most used tags: ${Array.from(allTags).slice(0, 5).join(', ') || 'none'}.`,
-        generated_at: new Date().toISOString(),
-        ai_powered: false
-      }), { headers: corsHeaders() });
-    }
-
-    // Call Claude API for intelligent summary
     const prompt = `You are a productivity coach analyzing someone's weekly task data. Be encouraging but honest.
 
 Here's the data from the past week:
@@ -122,22 +103,16 @@ Keep it concise and motivating. Don't use bullet points.`;
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 300,
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
+        messages: [{ role: 'user', content: prompt }]
       })
     });
 
-    if (!aiResponse.ok) {
-      throw new Error('AI API request failed');
-    }
+    if (!aiResponse.ok) throw new Error('AI API request failed');
 
     const aiData = await aiResponse.json();
-    const summaryText = aiData.content[0].text;
 
-    return new Response(JSON.stringify({
-      summary: summaryText,
+    return jsonResponse({
+      summary: aiData.content[0].text,
       generated_at: new Date().toISOString(),
       ai_powered: true,
       stats: {
@@ -147,16 +122,12 @@ Keep it concise and motivating. Don't use bullet points.`;
         overdue: overdueTasks.length,
         tags: Array.from(allTags)
       }
-    }), { headers: corsHeaders() });
-
+    });
   } catch (error) {
     console.error('Error generating summary:', error);
-    return new Response(JSON.stringify({ 
+    return jsonResponse({
       error: 'Failed to generate summary',
       summary: 'Unable to generate AI summary at this time. Please try again later.'
-    }), {
-      status: 500,
-      headers: corsHeaders()
-    });
+    }, 500);
   }
 }

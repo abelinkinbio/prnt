@@ -1,0 +1,32 @@
+{
+  // PRNT — Task Architecture System
+  // Migrated from Cloudflare Pages to Cloudflare Workers
+  //
+  // Why jsonc? It supports comments (unlike .json) and is the
+  // recommended format for Wrangler v4+. Your old wrangler.toml
+  // used Pages-specific config; this uses Workers-native config.
+
+  "name": "prnt",
+  "compatibility_date": "2025-06-05",
+
+  // This is the entry point — the single Worker script that handles
+  // all requests (API routes + static file serving)
+  "main": "src/index.js",
+
+  // Workers Assets: serves your static files (index.html, etc.)
+  // from the "public" folder. The "binding" lets your Worker code
+  // reference the assets programmatically if needed.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+
+  // D1 database binding — same database, just declared differently
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "prnt-db",
+      "database_id": "f4974a76-0ae1-4447-8d0a-e268f1dbd4f8"
+    }
+  ]
+}

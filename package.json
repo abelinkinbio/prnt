@@ -1,14 +1,14 @@
 {
   "name": "prnt",
-  "version": "1.0.0",
-  "description": "PRNT - Task Architecture System",
+  "version": "2.0.0",
+  "description": "PRNT — Task Architecture System (Workers)",
   "private": true,
   "scripts": {
-    "dev": "wrangler pages dev ./ --d1 DB=prnt-db",
-    "deploy": "wrangler pages deploy ./",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
     "db:migrate": "wrangler d1 execute prnt-db --file=./schema.sql"
   },
   "devDependencies": {
-    "wrangler": "^4.61.1"
+    "wrangler": "^4.0.0"
   }
 }
