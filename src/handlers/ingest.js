@@ -1,17 +1,29 @@
 // ============================================
-// PRNT — Ingest Handler
+// PRNT - Ingest Handler (Updated)
 // ============================================
-// Replaces: functions/api/ingest.js
-// Route:    POST /api/ingest
+// POST /api/ingest — accepts items from external
+// sources (Raycast, iOS Shortcuts, Email Worker).
 //
-// Accepts items from external sources (Raycast, iOS
-// Shortcuts, email worker) protected by API key.
+// WHAT CHANGED:
+// Previously, this used parseShorthand() directly,
+// which meant $commands like $bookmark and $quotes
+// were ignored from external channels. Now it
+// routes through the plugin system, so ALL input
+// channels get $command support for free.
+//
+// The API key check remains — this endpoint is
+// for authenticated external tools, not the web UI.
+// ============================================
 
-import { jsonResponse, generateId, now, parseShorthand } from '../utils.js';
-import { getValidAccessToken, createCalendarReminder, createGoogleTask } from '../google.js';
+import { jsonResponse, generateId, now } from '../utils.js';
+import { routeInput } from '../plugins/router.js';
+import {
+  getValidAccessToken,
+  createCalendarReminder,
+  createGoogleTask
+} from '../google.js';
 
-// ---- Sync to Google (background) ----
-
+// Google sync for default items (tasks/notes created via ingest)
 async function syncToGoogle(env, item) {
   try {
     const accessToken = await getValidAccessToken(env);
@@ -21,13 +33,19 @@ async function syncToGoogle(env, item) {
     let googleTaskId = null;
 
     if (item.type === 'task' && item.due_date) {
-      try { calendarEventId = await createCalendarReminder(accessToken, item); }
-      catch (e) { console.error('Calendar sync error:', e); }
+      try {
+        calendarEventId = await createCalendarReminder(accessToken, item);
+      } catch (e) {
+        console.error('Calendar sync error:', e);
+      }
     }
 
     if (item.type === 'task') {
-      try { googleTaskId = await createGoogleTask(accessToken, item); }
-      catch (e) { console.error('Tasks sync error:', e); }
+      try {
+        googleTaskId = await createGoogleTask(accessToken, item);
+      } catch (e) {
+        console.error('Tasks sync error:', e);
+      }
     }
 
     if (calendarEventId || googleTaskId) {
@@ -40,15 +58,17 @@ async function syncToGoogle(env, item) {
   }
 }
 
-// ---- POST /api/ingest ----
-
+// POST /api/ingest
 export async function handleIngest(request, env, ctx) {
-  // Check API key
-  const apiKey = request.headers.get('X-API-Key') ||
-    request.headers.get('Authorization')?.replace('Bearer ', '');
+  // --- API key check ---
+  const apiKey = request.headers.get('X-API-Key')
+    || request.headers.get('Authorization')?.replace('Bearer ', '');
 
   if (!env.PRNT_API_KEY) {
-    return jsonResponse({ error: 'API key not configured', message: 'Set PRNT_API_KEY environment variable' }, 500);
+    return jsonResponse({
+      error: 'API key not configured',
+      message: 'Set PRNT_API_KEY environment variable'
+    }, 500);
   }
 
   if (apiKey !== env.PRNT_API_KEY) {
@@ -63,33 +83,20 @@ export async function handleIngest(request, env, ctx) {
       return jsonResponse({ error: 'Text is required' }, 400);
     }
 
-    const parsed = parseShorthand(text);
-    const id = generateId();
-    const timestamp = now();
+    // Route through the plugin system
+    // This handles $bookmark, $quotes, and regular tasks/notes
+    const result = await routeInput(text.trim(), env);
 
-    await env.DB.prepare(`
-      INSERT INTO items (id, content, raw_input, type, priority, due_date, due_time, completed, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-    `).bind(id, parsed.content, parsed.raw_input + ` [via ${source}]`, parsed.type, parsed.priority, parsed.due_date, parsed.due_time, timestamp, timestamp).run();
-
-    if (parsed.tags.length > 0) {
-      const tagInserts = parsed.tags.map(tag => {
-        const tagId = generateId('tag');
-        return env.DB.prepare(`INSERT INTO tags (id, item_id, tag) VALUES (?, ?, ?)`).bind(tagId, id, tag.toLowerCase());
-      });
-      await env.DB.batch(tagInserts);
+    // If the result contains an item (from the default plugin),
+    // sync it to Google Calendar/Tasks in the background
+    if (result.item && result.item.type === 'task') {
+      ctx.waitUntil(syncToGoogle(env, result.item));
     }
 
-    const newItem = {
-      id, content: parsed.content, raw_input: parsed.raw_input,
-      type: parsed.type, priority: parsed.priority,
-      due_date: parsed.due_date, due_time: parsed.due_time,
-      completed: false, tags: parsed.tags, source, created_at: timestamp
-    };
-
-    ctx.waitUntil(syncToGoogle(env, newItem));
-
-    return jsonResponse({ success: true, item: newItem }, 201);
+    return jsonResponse({
+      ...result,
+      source
+    }, 201);
   } catch (error) {
     console.error('Ingest error:', error);
     return jsonResponse({ error: 'Failed to create item' }, 500);

@@ -1,250 +1,128 @@
-# PRNT — Task Architecture System
+# PRNT — Personal Runtime
 
-A Blueprint-styled productivity application combining notes, tasks, bookmarks, and an Eisenhower matrix visualization with Google Calendar & Tasks integration. Extensible via a **plugin system** that lets you add new `$commands` without touching core code.
+The thinnest possible layer between your thoughts and the systems you need them in.
 
-## 🏗 Architecture: Capture → Route → Execute
+PRNT is a personal productivity tool that acts as middleware between your brain and everything else. Tasks, notes, bookmarks, quotes — all driven by shorthand commands, all entering through the same pipeline. Type it in the web app, fire it from Raycast, send it from an iOS Shortcut, or email it in. PRNT parses the shorthand and routes it to the right place.
 
-Every piece of input flows through three layers:
+It's part container, part router. Plain text becomes tasks and notes. `$commands` trigger plugins that store, transform, or push content to external systems. The plugin architecture means adding a new command is a single file and one line in the registry. ⚡
 
 ```
-┌─────────────────────────────────────────────────┐
-│  CAPTURE                                         │
-│  Web App / iOS / Raycast / Email → Envelope      │
-└──────────────────────┬──────────────────────────┘
-                       ▼
-┌─────────────────────────────────────────────────┐
-│  ROUTE                                           │
-│  Check for $command → dispatch to plugin          │
-│  No $command → fall through to default (task/note)│
-└──────────────────────┬──────────────────────────┘
-                       ▼
-┌─────────────────────────────────────────────────┐
-│  EXECUTE                                         │
-│  Plugin: parse → process → respond               │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│  CAPTURE                                │
+│  Web App · Raycast · iOS · Email        │
+└──────────────────┬──────────────────────┘
+                   ▼
+┌─────────────────────────────────────────┐
+│  ROUTE                                  │
+│  $command → plugin · plain text → default│
+└──────────────────┬──────────────────────┘
+                   ▼
+┌─────────────────────────────────────────┐
+│  EXECUTE                                │
+│  parse → process → respond              │
+└─────────────────────────────────────────┘
 ```
 
-## 🔧 Setup & Deployment
+Every input channel, every command type — same pipeline.
 
-### Prerequisites
-- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installed
-- Cloudflare account with Pages enabled
-- Google Cloud Console account (for Calendar/Tasks sync)
+Powered by Cloudflare Workers, D1, Email Workers, and Workers Assets.
 
-### Database (Already Created)
-The D1 database `prnt-db` has been created with ID: `f4974a76-0ae1-4447-8d0a-e268f1dbd4f8`
+## 📖 Shorthand
 
-### Deploy to Cloudflare Pages
+```
+Review PR from UX @today p0 #frontend      → P0 task, due today, tagged
+Ideas for Q2 roadmap #planning              → note (no date = note)
+$bookmark https://example.com — great read  → saved bookmark
+$quotes The obstacle is the way - Marcus    → saved quote
+```
 
-1. **Clone/download this project** and navigate to the folder
+| Shorthand | What it does |
+|-----------|-------------|
+| `p0` `p1` `p2` `p3` | Priority (Eisenhower quadrants) |
+| `@today` `@tmrw` `@eow` | Due dates |
+| `@eod` | End of day (6pm) |
+| `@jan-25` | Specific date |
+| `#tag` | Tags |
+| `/t` | Force to task |
+| `$bookmark` | Save a URL |
+| `$quotes` | Save a quote |
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+## 🗂 Project Structure
 
-3. **Run D1 migrations:**
-   ```bash
-   npx wrangler d1 execute prnt-db --remote --file=./migrations/001-plugin-system.sql
-   ```
+```
+prnt/
+├── public/
+│   ├── index.html              # Main app
+│   └── quotes/index.html       # Quotes page
+├── src/
+│   ├── index.js                # Worker entry — all routes
+│   ├── google.js               # Google API utilities
+│   ├── utils.js                # Shared helpers
+│   ├── handlers/
+│   │   ├── items.js            # GET/POST /api/items
+│   │   ├── item.js             # GET/PATCH/DELETE /api/items/:id
+│   │   ├── input.js            # POST /api/input (universal entry)
+│   │   ├── ingest.js           # POST /api/ingest (external channels)
+│   │   ├── commands.js         # GET /api/commands
+│   │   ├── bookmarks.js        # GET/DELETE /api/bookmarks
+│   │   ├── quotes.js           # CRUD /api/quotes
+│   │   ├── summary.js          # POST /api/summary
+│   │   └── auth.js             # Google OAuth
+│   └── plugins/
+│       ├── router.js           # $command detection + dispatch
+│       ├── registry.js         # Plugin registry (static imports)
+│       └── commands/
+│           ├── default.js      # Tasks and notes
+│           ├── bookmark.js     # $bookmark
+│           └── quotes.js       # $quotes
+├── migrations/
+│   └── 001-plugin-system.sql
+├── wrangler.jsonc
+└── package.json
+```
 
-4. **Deploy:**
-   ```bash
-   npx wrangler pages deploy ./
-   ```
-
-5. **Add bindings in Dashboard:**
-   
-   Go to Cloudflare Dashboard → Pages → prnt → Settings → Functions
-   
-   **D1 database binding:**
-   - Variable name: `DB`
-   - D1 database: `prnt-db`
-   
-   **Environment variables (for Google OAuth):**
-   - `GOOGLE_CLIENT_ID`: Your Google OAuth client ID
-   - `GOOGLE_CLIENT_SECRET`: Your Google OAuth client secret
-   - `PRNT_API_KEY`: Your API key for external input channels
-
-### Deployment Checklist (Plugin System Update)
-
-If updating from a pre-plugin version:
+## ⚙️ Setup
 
 ```bash
-# 1. Run the plugin system migration
-npx wrangler d1 execute prnt-db --remote --file=./migrations/001-plugin-system.sql
-
-# 2. Deploy all files
-npx wrangler pages deploy ./
-
-# 3. Verify it works
-# - Open prnt.abelinkinbio.com
-# - Type "hello" and press Enter → should create a note (default handler)
-# - Type "$bookmark https://example.com — test" → should create a bookmark
-# - Click the Bookmarks tab → should see the bookmark
-# - Type "Review PR @today p0 #test" → should create a P0 task due today
-# - Check Matrix view → task should be in P0 quadrant
+npm install
 ```
 
-No new environment variables or bindings are needed. The plugin system uses the existing D1 database.
+### Environment Variables
 
-### Google OAuth Setup
+Set in Cloudflare Dashboard → Workers → prnt → Settings → Variables:
 
-1. **Create a Google Cloud Project:**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project (or use existing)
-   - Enable these APIs:
-     - Google Calendar API
-     - Google Tasks API
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `GOOGLE_CLIENT_ID` | Optional | Google OAuth |
+| `GOOGLE_CLIENT_SECRET` | Optional | Google OAuth |
+| `PRNT_API_KEY` | Optional | External input auth (Raycast, iOS, email) |
+| `ANTHROPIC_API_KEY` | Optional | Weekly summaries |
 
-2. **Create OAuth Credentials:**
-   - Go to APIs & Services → Credentials
-   - Click "Create Credentials" → "OAuth client ID"
-   - Application type: Web application
-   - Name: PRNT
-   - Authorized redirect URIs: `https://prnt.abelinkinbio.com/api/auth/google/callback`
+The D1 binding (`DB`) is configured in `wrangler.jsonc`.
 
-3. **Configure OAuth Consent Screen:**
-   - User type: External (or Internal if using Workspace)
-   - Add scopes: `calendar`, `tasks`
-   - Add your email as a test user
+### Deploy
 
-4. **Copy credentials to Cloudflare:**
-   - Copy Client ID → `GOOGLE_CLIENT_ID` env var
-   - Copy Client Secret → `GOOGLE_CLIENT_SECRET` env var
+```bash
+npm run deploy
+```
 
-### Local Development
+### Local Dev
+
 ```bash
 npm run dev
 ```
 
-## 📖 Shorthand Reference
-
-### Task Conversion
-| Command | Effect |
-|---------|--------|
-| `/t` | Convert to task |
-
-### Priority Levels
-| Command | Matrix Position |
-|---------|-----------------|
-| `p0` | Urgent + Important (top-left) |
-| `p1` | Important, Not Urgent (top-right) |
-| `p2` | Urgent, Not Important (bottom-left) |
-| `p3` | Neither (bottom-right) |
-
-### Due Dates
-| Command | Effect |
-|---------|--------|
-| `@today` | Due today |
-| `@eod` | End of day (6pm Lisbon) |
-| `@tomorrow` / `@tmrw` | Due tomorrow |
-| `@friday` / `@eow` | End of week |
-| `@jan-25` | Specific date (Jan 25) |
-
-### Tags
-| Command | Effect |
-|---------|--------|
-| `#frontend` | Add tag |
-| `#aj #chris` | Multiple tags |
-
-### $commands
-| Command | Effect |
-|---------|--------|
-| `$bookmark URL — note` | Save a bookmark |
-
-See [PLUGINS.md](PLUGINS.md) for how to add new commands.
-
-### Markdown
-| Syntax | Effect |
-|--------|--------|
-| `**text**` | **Bold** |
-| `*text*` | *Italic* |
-| `` `code` `` | `Inline code` |
-| `[text](url)` | Link |
-
-## 🎨 Examples
-
-```
-Review PR from AJ #frontend #aj @today p0
-```
-→ Creates a P0 task tagged with #frontend and #aj, due today
-
-```
-$bookmark https://example.com/article — great read about system design #design
-```
-→ Saves a bookmark with a note and #design tag
-
-```
-Ideas for Q2 roadmap #planning
-```
-→ Creates a note tagged #planning
-
-## 📂 Project Structure
-
-```
-prnt/
-├── index.html                    # Main application (frontend)
-├── functions/
-│   └── api/
-│       ├── _router.js            # Central dispatch (Capture → Route → Execute)
-│       ├── _registry.js          # Plugin registry (static imports)
-│       ├── _google.js            # Google API utilities
-│       ├── input.js              # POST /api/input (universal endpoint)
-│       ├── items.js              # GET/POST /api/items
-│       ├── items/
-│       │   └── [id].js           # GET/PATCH/DELETE single item
-│       ├── ingest.js             # POST /api/ingest (external channels)
-│       ├── commands.js           # GET /api/commands
-│       ├── bookmarks.js          # GET/DELETE /api/bookmarks
-│       ├── summary.js            # POST /api/summary (AI weekly summary)
-│       ├── commands/
-│       │   ├── default.js        # Default handler (tasks/notes)
-│       │   └── bookmark.js       # $bookmark plugin
-│       └── auth/
-│           └── google/
-│               ├── index.js      # OAuth initiation
-│               ├── callback.js   # OAuth callback
-│               └── status.js     # Connection status
-├── migrations/
-│   └── 001-plugin-system.sql     # Plugin tables + bookmarks
-├── PLUGINS.md                    # Plugin author guide
-├── wrangler.toml                 # Cloudflare configuration
-└── package.json                  # Project metadata
-```
-
 ## 🔌 Plugin System
 
-Adding a new `$command` takes 5 steps:
+Adding a new `$command`:
 
-1. Create `functions/api/commands/yourcommand.js` (parse, process, respond)
-2. Add one import + one line to `_registry.js`
+1. Create `src/plugins/commands/yourcommand.js` — export `name`, `parse()`, `process()`, `respond()`
+2. Import and register in `src/plugins/registry.js`
 3. Write a D1 migration for any new tables
-4. Run the migration
-5. Deploy
+4. Run migration, deploy
 
-See [PLUGINS.md](PLUGINS.md) for the full guide with a worked example.
+See [PLUGINS.md](PLUGINS.md) for the full guide.
 
-## 🔔 Google Integration
+## License
 
-### Calendar Reminders
-Tasks with due dates automatically create calendar events with reminders.
-
-### Google Tasks
-All tasks sync to a "PRNT" task list in Google Tasks.
-
-## 📧 Email Input
-
-Send emails to `abe@abelinkinbio.com` to create items. Full shorthand and `$command` support.
-
-## 🔍 Raycast Extension
-
-Add items to PRNT directly from Raycast. Set up the API key and URL in Raycast preferences.
-
-## 📱 iOS Shortcuts
-
-Send POST requests to `https://prnt.abelinkinbio.com/api/ingest` with your API key. Full shorthand and `$command` support.
-
-## 🔑 API Key Security
-
-External inputs require an API key. Generate one with `openssl rand -hex 32` and add it as the `PRNT_API_KEY` environment variable.
+MIT

@@ -8,27 +8,23 @@ Every piece of input flows through three layers:
 CAPTURE → ROUTE → EXECUTE
 ```
 
-1. **Capture**: Input arrives from any channel (web, iOS, Raycast, email) and is wrapped in a standard "envelope" shape: `{ raw, source, meta }`.
+1. **Capture**: Input arrives from any channel (web, iOS, Raycast, email).
 
-2. **Route**: The router (`_router.js`) checks if the raw text starts with `$commandname`. If it matches a registered plugin, it dispatches to that plugin. If not, it falls through to the default handler (tasks/notes).
+2. **Route**: The router (`src/plugins/router.js`) checks if the text starts with `$commandname`. Match → dispatch to plugin. No match → fall through to default handler (tasks/notes).
 
-3. **Execute**: The plugin runs three functions: `parse(envelope)` → `process(parsed, env, ctx)` → `respond(result)`.
+3. **Execute**: The plugin runs three functions: `parse()` → `process()` → `respond()`.
 
-## Adding a new command (5 steps)
+## Adding a new command
 
 Let's walk through adding `$log` — a daily check-in logger.
 
 ### Step 1: Create the plugin file
 
-Create `functions/api/commands/log.js`:
+Create `src/plugins/commands/log.js`:
 
 ```js
 // ============================================
 // PRNT — $log Command Plugin
-// ============================================
-//
-// Daily check-in: mood, energy, sleep, and a note.
-// Format: $log mood:8 energy:7 sleep:6.5 — went for a run
 // ============================================
 
 export const name = 'log';
@@ -39,23 +35,16 @@ function generateId() {
   return 'log_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
-function now() {
-  return new Date().toISOString();
-}
-
 // Step 1: Parse — extract structured data from raw input
 export function parse(envelope) {
   let content = envelope.raw.trim();
-  
-  // Extract key:value pairs
+
   const mood = content.match(/mood:(\d+\.?\d*)/i);
   const energy = content.match(/energy:(\d+\.?\d*)/i);
   const sleep = content.match(/sleep:(\d+\.?\d*)/i);
 
-  // Remove the key:value pairs from content
   content = content.replace(/\b(mood|energy|sleep):\d+\.?\d*/gi, '');
 
-  // Extract note (everything after — or --)
   let note = '';
   const dashSplit = content.split(/\s*(?:—|--)\s*/);
   if (dashSplit.length > 1) {
@@ -76,7 +65,7 @@ export function parse(envelope) {
 // Step 2: Process — write to the database
 export async function process(parsed, env, ctx) {
   const id = generateId();
-  const timestamp = now();
+  const timestamp = new Date().toISOString();
 
   await env.DB.prepare(`
     INSERT INTO daily_logs (id, mood, energy, sleep, note, source, created_at)
@@ -107,14 +96,15 @@ export function respond(result) {
 
 ### Step 2: Register it
 
-In `functions/api/_registry.js`, add two lines:
+In `src/plugins/registry.js`, add two lines:
 
 ```js
 import * as log from './commands/log.js';
 
 export const registry = {
-  __default: defaultHandler,
+  __default,
   bookmark,
+  quotes,
   log,          // ← Add this
 };
 ```
@@ -135,7 +125,8 @@ CREATE TABLE IF NOT EXISTS daily_logs (
 );
 
 INSERT OR IGNORE INTO commands (name, description, syntax, enabled, created_at)
-VALUES ('log', 'Daily check-in with mood, energy, and sleep', '$log mood:8 energy:7 sleep:6.5 — went for a run', 1, datetime('now'));
+VALUES ('log', 'Daily check-in with mood, energy, and sleep',
+        '$log mood:8 energy:7 sleep:6.5 — went for a run', 1, datetime('now'));
 ```
 
 ### Step 4: Run the migration
@@ -147,62 +138,53 @@ npx wrangler d1 execute prnt-db --remote --file=./migrations/002-log-plugin.sql
 ### Step 5: Deploy
 
 ```bash
-npx wrangler pages deploy ./
+npm run deploy
 ```
 
-That's it. Now `$log mood:8 energy:7` works from every input channel.
+That's it. `$log mood:8 energy:7` now works from every input channel.
 
 ---
 
 ## The plugin contract
 
-Every plugin must export these:
+Every plugin must export:
 
 | Export | Type | Purpose |
 |--------|------|---------|
-| `name` | `string` | The command name (matches `$name`) |
-| `description` | `string` | Human-readable description (shown in UI) |
-| `syntax` | `string` | Example usage (shown in Quick Reference) |
+| `name` | `string` | Command name (matches `$name`) |
+| `description` | `string` | Human-readable (shown in UI) |
+| `syntax` | `string` | Example usage |
 | `parse(envelope)` | `function` | Extract structured data from raw text |
 | `process(parsed, env, ctx)` | `async function` | Do the work (DB writes, API calls) |
 | `respond(result)` | `function` | Format the JSON response |
 
 ### The envelope
 
-Every plugin receives an envelope:
-
 ```js
 {
-  raw: "the text after $command was stripped",
+  raw: "text after $command was stripped",
   source: "web" | "ios-shortcut" | "raycast" | "email" | "api",
-  command: "bookmark",  // the command name
-  meta: { ... }         // optional channel-specific context
+  command: "bookmark",
+  meta: { ... }  // optional channel-specific context
 }
 ```
 
 ### The response
 
-Every plugin must return:
-
 ```js
 {
-  status: 201,  // HTTP status code
+  status: 201,
   body: {
-    item: { ... },       // the created item
-    command: "bookmark",  // the command name
-    message: "Bookmark saved"  // optional toast message
+    item: { ... },
+    command: "bookmark",
+    message: "Bookmark saved"
   }
 }
 ```
 
 ## Tips
 
-- **Keep plugins simple.** A plugin should do one thing well. If it's getting complicated, it might be two plugins.
-
-- **Use `ctx.waitUntil()` for slow work.** If your plugin needs to call an external API (like fetching a page title), do the DB write first, then use `ctx.waitUntil()` to do the slow work in the background.
-
-- **Prefix your IDs.** Use `bk_`, `log_`, `rev_` etc. to make it easy to identify what kind of item an ID belongs to.
-
-- **Follow the existing patterns.** Look at `default.js` and `bookmark.js` for the canonical patterns. Copy, don't invent.
-
-- **The frontend doesn't need to know.** The beauty of the plugin system is that the UI doesn't need custom code for every command. It sends raw text, the server handles it. If you want a custom tab for your command's data, add a GET endpoint and a render function, following the bookmarks pattern.
+- **Keep plugins simple.** One command, one job.
+- **Use `ctx.waitUntil()` for slow work.** DB write first, then background tasks.
+- **Prefix your IDs.** `bk_`, `log_`, `rev_` — easy to identify at a glance.
+- **Follow existing patterns.** Copy `default.js` or `bookmark.js`. Don't invent.

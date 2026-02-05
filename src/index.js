@@ -17,20 +17,31 @@
 // - If no API route matches, Workers Assets serves static files
 // ============================================
 
+// --- Core handlers ---
 import { handleItemsList, handleItemsCreate } from './handlers/items.js';
 import { handleItemGet, handleItemUpdate, handleItemDelete } from './handlers/item.js';
 import { handleIngest } from './handlers/ingest.js';
 import { handleSummary } from './handlers/summary.js';
 import { handleGoogleAuth, handleGoogleCallback, handleGoogleStatus, handleGoogleDisconnect } from './handlers/auth.js';
 
+// --- Plugin system handlers ---
+// These were built during the plugin system phase but
+// weren't wired into the Workers router after migration.
+import { handleCommandsList } from './handlers/commands.js';
+import { handleBookmarksList, handleBookmarkDelete } from './handlers/bookmarks.js';
+import { handleInput } from './handlers/input.js';
+import {
+  handleQuotesList,
+  handleQuotesCreate,
+  handleQuotesRandom,
+  handleQuoteGet,
+  handleQuoteUpdate,
+  handleQuoteDelete
+} from './handlers/quotes.js';
+
 // ============================================
 // CORS Helper
 // ============================================
-// CORS (Cross-Origin Resource Sharing) headers let your
-// frontend talk to your API. Since both live on the same
-// domain, this is mainly needed for local development and
-// external API clients (Raycast, iOS Shortcuts, etc.)
-
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -40,9 +51,6 @@ function corsHeaders() {
   };
 }
 
-// Handle CORS preflight requests
-// Browsers send an OPTIONS request before the real request
-// to check if the server allows cross-origin requests
 function handleOptions() {
   return new Response(null, { headers: corsHeaders() });
 }
@@ -60,9 +68,6 @@ function jsonResponse(data, status = 200) {
 // ============================================
 // Route Matching Helper
 // ============================================
-// Matches URL patterns like /api/items/:id
-// Returns the matched parameters (e.g., { id: "item_abc123" })
-
 function matchRoute(path, pattern) {
   const pathParts = path.split('/').filter(Boolean);
   const patternParts = pattern.split('/').filter(Boolean);
@@ -72,10 +77,9 @@ function matchRoute(path, pattern) {
   const params = {};
   for (let i = 0; i < patternParts.length; i++) {
     if (patternParts[i].startsWith(':')) {
-      // This is a dynamic segment (like :id)
       params[patternParts[i].slice(1)] = pathParts[i];
     } else if (patternParts[i] !== pathParts[i]) {
-      return null; // Static segment doesn't match
+      return null;
     }
   }
   return params;
@@ -95,17 +99,11 @@ export default {
       return handleOptions();
     }
 
-    // ---- API Routes ----
-    // These replace your old functions/ directory structure:
-    //
-    // OLD (Pages Functions):              NEW (Workers Router):
-    // functions/api/items.js         →    /api/items
-    // functions/api/items/[id].js    →    /api/items/:id
-    // functions/api/ingest.js        →    /api/ingest
-    // functions/api/summary.js       →    /api/summary
-    // functions/api/auth/google/     →    /api/auth/google/*
-
     try {
+      // ============================================
+      // CORE ROUTES
+      // ============================================
+
       // --- Items (list + create) ---
       if (path === '/api/items') {
         if (method === 'GET') return await handleItemsList(env);
@@ -121,6 +119,7 @@ export default {
       }
 
       // --- Ingest (external input from Raycast, iOS, email) ---
+      // Already routes through plugin system for $commands
       if (path === '/api/ingest' && method === 'POST') {
         return await handleIngest(request, env, ctx);
       }
@@ -142,14 +141,49 @@ export default {
         if (method === 'DELETE') return await handleGoogleDisconnect(env);
       }
 
+      // ============================================
+      // PLUGIN SYSTEM ROUTES
+      // ============================================
+
+      // --- Commands (autocomplete list for $ prefix) ---
+      if (path === '/api/commands' && method === 'GET') {
+        return await handleCommandsList(env);
+      }
+
+      // --- Input (web app universal entry point) ---
+      // All web app input goes here → plugin router
+      // detects $commands and dispatches accordingly.
+      // Normal text falls through to default handler.
+      if (path === '/api/input' && method === 'POST') {
+        return await handleInput(request, env);
+      }
+
+      // --- Bookmarks ---
+      if (path === '/api/bookmarks') {
+        if (method === 'GET') return await handleBookmarksList(env);
+        if (method === 'DELETE') return await handleBookmarkDelete(request, env);
+      }
+
+      // --- Quotes ---
+      // /random MUST come before /:id, otherwise
+      // "random" would match as a quote ID
+      if (path === '/api/quotes/random' && method === 'GET') {
+        return await handleQuotesRandom(env);
+      }
+
+      const quoteParams = matchRoute(path, '/api/quotes/:id');
+      if (quoteParams) {
+        if (method === 'GET') return await handleQuoteGet(env, quoteParams.id);
+        if (method === 'PATCH') return await handleQuoteUpdate(request, env, quoteParams.id);
+        if (method === 'DELETE') return await handleQuoteDelete(env, quoteParams.id);
+      }
+
+      if (path === '/api/quotes') {
+        if (method === 'GET') return await handleQuotesList(request, env);
+        if (method === 'POST') return await handleQuotesCreate(request, env);
+      }
+
       // ---- Static Assets (fallback) ----
-      // If no API route matched, let Workers Assets serve the
-      // static files from the public/ directory. This replaces
-      // the automatic static file serving that Pages did.
-      //
-      // The ASSETS binding is provided by the "assets" config
-      // in wrangler.jsonc. It knows how to serve index.html
-      // for the root path, handle content types, etc.
       return env.ASSETS.fetch(request);
 
     } catch (error) {
