@@ -93,8 +93,8 @@ export async function process(parsed, env) {
 // Format the response
 export function respond(result) {
   return {
-    success: true,
-    type: 'quote',
-    quote: result
+    command: 'quotes',
+    message: 'Quote saved',
+    item: result
   };
 }
