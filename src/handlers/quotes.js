@@ -6,7 +6,6 @@
 //
 // GET    /api/quotes        → list all quotes
 // POST   /api/quotes        → create a new quote
-// GET    /api/quotes/random  → get a random quote
 // GET    /api/quotes/:id     → get single quote
 // PATCH  /api/quotes/:id     → update (edit or favorite)
 // DELETE /api/quotes/:id     → soft-delete a quote
@@ -99,30 +98,6 @@ export async function handleQuotesCreate(request, env) {
   } catch (error) {
     console.error('Error creating quote:', error);
     return jsonResponse({ error: 'Failed to create quote' }, 500);
-  }
-}
-
-// GET /api/quotes/random — get a random non-deleted quote
-export async function handleQuotesRandom(env) {
-  try {
-    // SQLite's RANDOM() function picks a random row.
-    // This is efficient even with many rows because
-    // SQLite only needs to scan one row, not sort all of them.
-    const quote = await env.DB.prepare(`
-      SELECT * FROM quotes
-      WHERE deleted = 0
-      ORDER BY RANDOM()
-      LIMIT 1
-    `).first();
-
-    if (!quote) {
-      return jsonResponse({ error: 'No quotes found' }, 404);
-    }
-
-    return jsonResponse({ quote });
-  } catch (error) {
-    console.error('Error fetching random quote:', error);
-    return jsonResponse({ error: 'Failed to fetch random quote' }, 500);
   }
 }
 

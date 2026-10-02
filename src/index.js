@@ -33,7 +33,6 @@ import { handleInput } from './handlers/input.js';
 import {
   handleQuotesList,
   handleQuotesCreate,
-  handleQuotesRandom,
   handleQuoteGet,
   handleQuoteUpdate,
   handleQuoteDelete
@@ -165,12 +164,6 @@ export default {
       }
 
       // --- Quotes ---
-      // /random MUST come before /:id, otherwise
-      // "random" would match as a quote ID
-      if (path === '/api/quotes/random' && method === 'GET') {
-        return await handleQuotesRandom(env);
-      }
-
       const quoteParams = matchRoute(path, '/api/quotes/:id');
       if (quoteParams) {
         if (method === 'GET') return await handleQuoteGet(env, quoteParams.id);
