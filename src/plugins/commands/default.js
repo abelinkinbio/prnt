@@ -74,9 +74,10 @@ export async function process(parsed, env) {
 
 // Format the response
 export function respond(result) {
+  const type = result.type === 'task' ? 'Task' : 'Note';
   return {
-    success: true,
-    type: result.type,
+    command: 'default',
+    message: `${type} added`,
     item: result
   };
 }

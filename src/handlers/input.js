@@ -21,15 +21,15 @@ import { routeInput } from '../plugins/router.js';
 export async function handleInput(request, env) {
   try {
     const body = await request.json();
-    const { text } = body;
+    const { raw } = body;
 
-    if (!text || !text.trim()) {
+    if (!raw || !raw.trim()) {
       return jsonResponse({ error: 'Text is required' }, 400);
     }
 
     // Route through the plugin system
     // This handles both $commands and regular tasks/notes
-    const result = await routeInput(text.trim(), env);
+    const result = await routeInput(raw.trim(), env);
 
     return jsonResponse(result, 201);
   } catch (error) {

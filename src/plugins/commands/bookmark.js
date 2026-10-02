@@ -95,8 +95,8 @@ export async function process(parsed, env) {
 // Format the response
 export function respond(result) {
   return {
-    success: true,
-    type: 'bookmark',
-    bookmark: result
+    command: 'bookmark',
+    message: 'Bookmark saved',
+    item: result
   };
 }
