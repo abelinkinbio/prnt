@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PRNT — Quotes</title>
   
   <!-- Favicon -->
@@ -180,10 +180,6 @@
       position: relative;
       z-index: 1;
       transition: opacity 0.3s ease;
-    }
-    
-    .quote-text.loading {
-      opacity: 0.3;
     }
     
     /* Attribution */
@@ -664,17 +660,6 @@
       }
     }
     
-    async function getRandomQuote() {
-      try {
-        const res = await fetch('/api/quotes/random');
-        const data = await res.json();
-        return data.quote;
-      } catch (e) {
-        console.error('Failed to get random quote:', e);
-        return null;
-      }
-    }
-    
     // ========== DISPLAY ==========
     function displayQuote(quote) {
       if (!quote) return;
@@ -780,24 +765,11 @@
         });
         
         const data = await res.json();
-        if (data.success) {
-          currentQuote.favorite = newFav;
-          
-          // Update local quotes array
-          const idx = quotes.findIndex(q => q.id === currentQuote.id);
-          if (idx !== -1) quotes[idx].favorite = newFav;
-          
-          // Update UI
-          const favBtn = document.getElementById('favorite-btn');
-          if (newFav) {
-            favBtn.classList.add('active');
-            favBtn.textContent = '♥';
-            showToast('Added to favorites');
-          } else {
-            favBtn.classList.remove('active');
-            favBtn.textContent = '♡';
-            showToast('Removed from favorites');
-          }
+        if (res.ok && data.quote) {
+          const idx = quotes.findIndex(q => q.id === data.quote.id);
+          if (idx !== -1) quotes[idx] = data.quote;
+          displayQuote(data.quote);
+          showToast(data.quote.favorite ? 'Added to favorites' : 'Removed from favorites');
         }
       } catch (e) {
         console.error('Failed to toggle favorite:', e);
@@ -810,11 +782,8 @@
       if (!confirm('Delete this quote?')) return;
       
       try {
-        // Soft delete
         const res = await fetch(`/api/quotes/${currentQuote.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deleted: true })
+          method: 'DELETE'
         });
         
         if (res.ok) {
@@ -870,18 +839,10 @@
         });
         
         const data = await res.json();
-        if (data.success) {
-          // Update local data
-          currentQuote.quote_text = quoteText;
-          currentQuote.attribution = attribution;
-          currentQuote.source = source;
-          
-          const idx = quotes.findIndex(q => q.id === currentQuote.id);
-          if (idx !== -1) {
-            quotes[idx] = { ...quotes[idx], quote_text: quoteText, attribution, source };
-          }
-          
-          displayQuote(currentQuote);
+        if (res.ok && data.quote) {
+          const idx = quotes.findIndex(q => q.id === data.quote.id);
+          if (idx !== -1) quotes[idx] = data.quote;
+          displayQuote(data.quote);
           closeEditModal();
           showToast('Quote updated');
         }
