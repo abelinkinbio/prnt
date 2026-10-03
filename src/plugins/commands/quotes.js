@@ -19,6 +19,7 @@ import { generateId, now } from '../../utils.js';
 
 export const name = 'quotes';
 export const description = 'Save quotes for daily inspiration';
+export const syntax = '$quotes The obstacle is the way - Marcus Aurelius (Meditations)';
 
 // Parse "$quotes text - attribution (source)" into structured data
 export function parse(raw) {

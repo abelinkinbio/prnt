@@ -6,32 +6,25 @@
 // type "$" in the input terminal, so it knows
 // what autocomplete suggestions to show.
 //
-// This reads from the "commands" table in D1.
-// To add a new command to autocomplete, just
-// INSERT a row into that table — no code change.
+// The plugin registry is the only source of
+// truth (the same object the router dispatches
+// from). __default is the fallback task/note
+// handler, not a $command, so it is skipped.
 // ============================================
 
 import { jsonResponse } from '../utils.js';
+import { registry } from '../plugins/registry.js';
 
-// GET /api/commands — list all enabled commands
-export async function handleCommandsList(env) {
-  try {
-    const result = await env.DB.prepare(`
-      SELECT name, description, syntax 
-      FROM commands 
-      WHERE enabled = 1
-      ORDER BY name ASC
-    `).all();
+// GET /api/commands — list real $commands from the registry
+export function handleCommandsList() {
+  const commands = Object.entries(registry)
+    .filter(([key]) => key !== '__default')
+    .map(([, plugin]) => ({
+      name: plugin.name,
+      description: plugin.description,
+      syntax: plugin.syntax
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-    return jsonResponse({
-      commands: result.results.map(cmd => ({
-        name: cmd.name,
-        description: cmd.description,
-        syntax: cmd.syntax
-      }))
-    });
-  } catch (error) {
-    console.error('Error fetching commands:', error);
-    return jsonResponse({ error: 'Failed to fetch commands' }, 500);
-  }
+  return jsonResponse({ commands });
 }
