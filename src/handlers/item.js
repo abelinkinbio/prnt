@@ -142,8 +142,18 @@ export async function handleItemUpdate(request, env, ctx, itemId) {
     const item = await getItemWithTags(env, itemId);
     if (!item) return jsonResponse({ error: 'Item not found' }, 404);
 
-    // Sync to Google in background
-    if (!item.deleted) {
+    // Soft-delete removes the Calendar event and Google Task.
+    // Stored ids are cleared first so undo recreates them instead
+    // of updating resources that this cleanup just deleted.
+    if (body.deleted) {
+      const snapshot = { ...item };
+      await env.DB.prepare(
+        `UPDATE items SET google_calendar_event_id = NULL, google_task_id = NULL WHERE id = ?`
+      ).bind(itemId).run();
+      item.google_calendar_event_id = null;
+      item.google_task_id = null;
+      ctx.waitUntil(syncDeleteToGoogle(env, snapshot));
+    } else if (!item.deleted) {
       ctx.waitUntil(syncUpdateToGoogle(env, item));
     }
 

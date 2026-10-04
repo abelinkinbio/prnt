@@ -18,7 +18,7 @@
 // ============================================
 
 // --- Core handlers ---
-import { handleItemsList, handleItemsCreate } from './handlers/items.js';
+import { handleItemsList } from './handlers/items.js';
 import { handleItemGet, handleItemUpdate, handleItemDelete } from './handlers/item.js';
 import { handleIngest } from './handlers/ingest.js';
 import { handleSummary } from './handlers/summary.js';
@@ -103,10 +103,9 @@ export default {
       // CORE ROUTES
       // ============================================
 
-      // --- Items (list + create) ---
-      if (path === '/api/items') {
-        if (method === 'GET') return await handleItemsList(env);
-        if (method === 'POST') return await handleItemsCreate(request, env, ctx);
+      // --- Items (list). Creates go through POST /api/input. ---
+      if (path === '/api/items' && method === 'GET') {
+        return await handleItemsList(env);
       }
 
       // --- Single item (get, update, delete) ---
@@ -154,7 +153,7 @@ export default {
       // detects $commands and dispatches accordingly.
       // Normal text falls through to default handler.
       if (path === '/api/input' && method === 'POST') {
-        return await handleInput(request, env);
+        return await handleInput(request, env, ctx);
       }
 
       // --- Bookmarks ---

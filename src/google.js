@@ -297,3 +297,47 @@ export async function deleteGoogleTask(accessToken, taskId) {
     throw new Error(`Tasks delete error: ${error}`);
   }
 }
+
+// ---- Create sync ----
+// One helper for task creates from POST /api/input and POST /api/ingest.
+// Callers must schedule it with ctx.waitUntil(...). No-ops when Google
+// is not connected. If the item was soft-deleted while this was in
+// flight, the new Calendar event and Task are removed instead of saved.
+
+export async function syncToGoogle(env, item) {
+  try {
+    const accessToken = await getValidAccessToken(env);
+    if (!accessToken) return;
+
+    let calendarEventId = null;
+    let googleTaskId = null;
+
+    if (item.type === 'task' && item.due_date) {
+      try { calendarEventId = await createCalendarReminder(accessToken, item); }
+      catch (e) { console.error('Calendar sync error:', e); }
+    }
+
+    if (item.type === 'task') {
+      try { googleTaskId = await createGoogleTask(accessToken, item); }
+      catch (e) { console.error('Tasks sync error:', e); }
+    }
+
+    if (calendarEventId || googleTaskId) {
+      const write = await env.DB.prepare(`
+        UPDATE items SET google_calendar_event_id = ?, google_task_id = ?
+        WHERE id = ? AND deleted = 0
+      `).bind(calendarEventId, googleTaskId, item.id).run();
+
+      if (write.meta && write.meta.changes === 0) {
+        try {
+          if (calendarEventId) await deleteCalendarEvent(accessToken, calendarEventId);
+          if (googleTaskId) await deleteGoogleTask(accessToken, googleTaskId);
+        } catch (e) {
+          console.error('Google sync cleanup error:', e);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Google sync error:', error);
+  }
+}
