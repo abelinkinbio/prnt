@@ -18,6 +18,7 @@ import { generateId, now } from '../../utils.js';
 
 export const name = 'bookmark';
 export const description = 'Save a URL with optional notes and tags';
+export const syntax = '$bookmark https://example.com — description #tag';
 
 // Parse "$bookmark URL — note #tags" into structured data
 export function parse(raw) {

@@ -1044,7 +1044,7 @@
       try {
         const res = await fetch(`${API_BASE}/commands`);
         const data = await res.json();
-        availableCommands = (data.commands || []).filter(c => !c.isDefault);
+        availableCommands = data.commands || [];
 
         // Populate $ suggestions for autocomplete
         suggestions['$'] = availableCommands.map(cmd => ({

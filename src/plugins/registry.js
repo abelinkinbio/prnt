@@ -6,6 +6,7 @@
 // (lowercase, no $ prefix). Each value is a
 // plugin module that exports:
 //   name, description, parse(), process(), respond()
+//   and, for every real $command, syntax
 //
 // __default is special — it's the fallback when
 // NO $command prefix is detected. It handles the
