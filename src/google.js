@@ -301,8 +301,7 @@ export async function deleteGoogleTask(accessToken, taskId) {
 // ---- Create sync ----
 // One helper for task creates from POST /api/input and POST /api/ingest.
 // Callers must schedule it with ctx.waitUntil(...). No-ops when Google
-// is not connected. If the item was soft-deleted while this was in
-// flight, the new Calendar event and Task are removed instead of saved.
+// is not connected.
 
 export async function syncToGoogle(env, item) {
   try {
@@ -323,19 +322,9 @@ export async function syncToGoogle(env, item) {
     }
 
     if (calendarEventId || googleTaskId) {
-      const write = await env.DB.prepare(`
-        UPDATE items SET google_calendar_event_id = ?, google_task_id = ?
-        WHERE id = ? AND deleted = 0
+      await env.DB.prepare(`
+        UPDATE items SET google_calendar_event_id = ?, google_task_id = ? WHERE id = ?
       `).bind(calendarEventId, googleTaskId, item.id).run();
-
-      if (write.meta && write.meta.changes === 0) {
-        try {
-          if (calendarEventId) await deleteCalendarEvent(accessToken, calendarEventId);
-          if (googleTaskId) await deleteGoogleTask(accessToken, googleTaskId);
-        } catch (e) {
-          console.error('Google sync cleanup error:', e);
-        }
-      }
     }
   } catch (error) {
     console.error('Google sync error:', error);
