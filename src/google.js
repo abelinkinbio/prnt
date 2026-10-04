@@ -297,3 +297,36 @@ export async function deleteGoogleTask(accessToken, taskId) {
     throw new Error(`Tasks delete error: ${error}`);
   }
 }
+
+// ---- Create sync ----
+// One helper for task creates from POST /api/input and POST /api/ingest.
+// Callers must schedule it with ctx.waitUntil(...). No-ops when Google
+// is not connected.
+
+export async function syncToGoogle(env, item) {
+  try {
+    const accessToken = await getValidAccessToken(env);
+    if (!accessToken) return;
+
+    let calendarEventId = null;
+    let googleTaskId = null;
+
+    if (item.type === 'task' && item.due_date) {
+      try { calendarEventId = await createCalendarReminder(accessToken, item); }
+      catch (e) { console.error('Calendar sync error:', e); }
+    }
+
+    if (item.type === 'task') {
+      try { googleTaskId = await createGoogleTask(accessToken, item); }
+      catch (e) { console.error('Tasks sync error:', e); }
+    }
+
+    if (calendarEventId || googleTaskId) {
+      await env.DB.prepare(`
+        UPDATE items SET google_calendar_event_id = ?, google_task_id = ? WHERE id = ?
+      `).bind(calendarEventId, googleTaskId, item.id).run();
+    }
+  } catch (error) {
+    console.error('Google sync error:', error);
+  }
+}

@@ -59,7 +59,7 @@ prnt/
 │   ├── google.js               # Google API utilities
 │   ├── utils.js                # Shared helpers
 │   ├── handlers/
-│   │   ├── items.js            # GET/POST /api/items
+│   │   ├── items.js            # GET /api/items
 │   │   ├── item.js             # GET/PATCH/DELETE /api/items/:id
 │   │   ├── input.js            # POST /api/input (universal entry)
 │   │   ├── ingest.js           # POST /api/ingest (external channels)
