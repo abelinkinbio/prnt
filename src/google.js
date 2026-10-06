@@ -1,16 +1,7 @@
-// ============================================
-// PRNT — Google API Utilities
-// ============================================
-// Shared functions for OAuth and Google Calendar/Tasks API.
-// This is the same code from your old _google.js — nothing
-// changes about how Google APIs work, just how it's imported.
-
 export const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/tasks'
 ].join(' ');
-
-// ---- OAuth Helpers ----
 
 export function getAuthUrl(clientId, redirectUri) {
   const params = new URLSearchParams({
@@ -63,7 +54,6 @@ export async function refreshAccessToken(refreshToken, clientId, clientSecret) {
   return response.json();
 }
 
-// Get a valid access token, refreshing if it's about to expire
 export async function getValidAccessToken(env) {
   const auth = await env.DB.prepare(
     `SELECT * FROM google_auth WHERE id = 'default'`
@@ -99,8 +89,6 @@ export async function getValidAccessToken(env) {
 
   return auth.access_token;
 }
-
-// ---- Google Calendar Helpers ----
 
 export async function createCalendarReminder(accessToken, task) {
   if (!task.due_date) return null;
@@ -140,27 +128,6 @@ export async function createCalendarReminder(accessToken, task) {
   }
 
   const createdEvent = await response.json();
-
-  // Create morning reminder at 10am if due time is after 10am
-  const dueHour = task.due_time ? parseInt(task.due_time.split(':')[0]) : 18;
-  if (dueHour > 10) {
-    const morningEvent = {
-      summary: `🌅 Due today: ${task.content}`,
-      description: `PRNT Task reminder - due at ${task.due_time || '18:00'}\nPriority: P${task.priority ?? '-'}`,
-      start: { dateTime: `${task.due_date}T10:00:00`, timeZone: 'Europe/Lisbon' },
-      end: { dateTime: `${task.due_date}T10:00:00`, timeZone: 'Europe/Lisbon' },
-      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 0 }] },
-      visibility: 'private',
-      transparency: 'transparent'
-    };
-
-    await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(morningEvent)
-    });
-  }
-
   return createdEvent.id;
 }
 
@@ -207,13 +174,7 @@ export async function deleteCalendarEvent(accessToken, eventId) {
   }
 }
 
-// ---- Google Tasks Helpers ----
-
-let cachedTaskListId = null;
-
 async function getOrCreateTaskList(accessToken, listName) {
-  if (cachedTaskListId) return cachedTaskListId;
-
   const listResponse = await fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists', {
     headers: { 'Authorization': `Bearer ${accessToken}` }
   });
@@ -222,10 +183,7 @@ async function getOrCreateTaskList(accessToken, listName) {
   const lists = await listResponse.json();
   const existingList = (lists.items || []).find(l => l.title === listName);
 
-  if (existingList) {
-    cachedTaskListId = existingList.id;
-    return existingList.id;
-  }
+  if (existingList) return existingList.id;
 
   const createResponse = await fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists', {
     method: 'POST',
@@ -235,7 +193,6 @@ async function getOrCreateTaskList(accessToken, listName) {
   if (!createResponse.ok) throw new Error('Failed to create task list');
 
   const newList = await createResponse.json();
-  cachedTaskListId = newList.id;
   return newList.id;
 }
 
@@ -298,11 +255,7 @@ export async function deleteGoogleTask(accessToken, taskId) {
   }
 }
 
-// ---- Create sync ----
-// One helper for task creates from POST /api/input and POST /api/ingest.
-// Callers must schedule it with ctx.waitUntil(...). No-ops when Google
-// is not connected.
-
+// Callers must schedule this with ctx.waitUntil(...).
 export async function syncToGoogle(env, item) {
   try {
     const accessToken = await getValidAccessToken(env);
