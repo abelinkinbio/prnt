@@ -919,23 +919,6 @@
   <div class="toast-container" id="toast-container"></div>
 
   <script>
-    // ============================================
-    // PRNT — Frontend Application
-    // ============================================
-    //
-    // KEY CHANGE (Plugin System):
-    // The input terminal now sends RAW TEXT to the server
-    // via POST /api/input, and the server's plugin router
-    // handles parsing and dispatch. This means:
-    //
-    // 1. $commands work from the web app (not just external channels)
-    // 2. There's one parser (server-side), not two
-    // 3. The client-side preview parser is kept for UX only
-    //
-    // Everything else (matrix, list, notes, wrapped, drag-and-drop,
-    // edit modal, theme, Google status) is preserved exactly.
-    // ============================================
-
     const API_BASE = '/api';
     let items = [];
     let bookmarks = [];
@@ -1160,7 +1143,7 @@
       else tags.push({ type: 'type', text: 'NOTE' });
 
       if (parsed.priority !== null) tags.push({ type: 'priority', text: 'P' + parsed.priority, p: parsed.priority });
-      if (parsed.due_date) tags.push({ type: 'date', text: parsed.due_date });
+      parsed.dates.forEach(t => tags.push({ type: 'date', text: t }));
       parsed.tags.forEach(t => tags.push({ type: 'tag', text: '#' + t }));
 
       previewContent.textContent = parsed.content || '(empty content)';
@@ -1237,9 +1220,6 @@
         const val = mainInput.value.trim();
         if (!val) return;
 
-        // ── KEY CHANGE: Send raw text to the server ──
-        // The server's plugin router handles parsing and dispatch.
-        // This is how $commands work from the web app.
         await submitRawInput(val);
 
         mainInput.value = '';
@@ -1306,17 +1286,13 @@
       }
     }
 
-    // ========== CLIENT-SIDE PARSER (for live preview only) ==========
-    // This is a lightweight copy of the server-side parser.
-    // It only runs in the browser for the live preview UX.
-    // The REAL parsing always happens server-side.
+    // ========== PREVIEW PARSER ==========
     function parseInput(raw) {
       let content = raw.trim();
       let type = 'note';
       let priority = null;
-      let dueDate = null;
-      let dueTime = null;
       const tags = [];
+      const dates = [];
 
       if (content.includes('/t')) { type = 'task'; content = content.replace(/\/t\s*/g, ''); }
 
@@ -1326,34 +1302,19 @@
       const tagMatches = content.match(/#(\w+)/g);
       if (tagMatches) { tagMatches.forEach(t => tags.push(t.substring(1).toLowerCase())); content = content.replace(/#\w+/g, ''); }
 
-      const now = new Date();
-      const lisbon = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' });
-      const parts = lisbon.formatToParts(now);
-      const lisbonDate = new Date(parseInt(parts.find(p => p.type === 'year').value), parseInt(parts.find(p => p.type === 'month').value) - 1, parseInt(parts.find(p => p.type === 'day').value));
-
-      if (content.match(/@today\b/i)) { dueDate = fmtDate(lisbonDate); content = content.replace(/@today\b/gi, ''); type = 'task'; }
-      if (content.match(/@eod\b/i)) { dueDate = fmtDate(lisbonDate); dueTime = '18:00'; content = content.replace(/@eod\b/gi, ''); type = 'task'; }
-      if (content.match(/@(tomorrow|tmrw)\b/i)) { const d = new Date(lisbonDate); d.setDate(d.getDate() + 1); dueDate = fmtDate(d); content = content.replace(/@(tomorrow|tmrw)\b/gi, ''); type = 'task'; }
-      if (content.match(/@(friday|eow)\b/i)) { const d = new Date(lisbonDate); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7)); dueDate = fmtDate(d); content = content.replace(/@(friday|eow)\b/gi, ''); type = 'task'; }
-
-      const dateMatch = content.match(/@([a-z]{3})-(\d{1,2})\b/i);
-      if (dateMatch) {
-        const months = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
-        const m = months[dateMatch[1].toLowerCase()], day = parseInt(dateMatch[2]);
-        if (m !== undefined && day >= 1 && day <= 31) {
-          const target = new Date(lisbonDate.getFullYear(), m, day);
-          if (target < lisbonDate) target.setFullYear(target.getFullYear() + 1);
-          dueDate = fmtDate(target);
-          content = content.replace(/@[a-z]{3}-\d{1,2}\b/gi, '');
-          type = 'task';
-        }
-      }
+      const months = { jan:1, feb:1, mar:1, apr:1, may:1, jun:1, jul:1, aug:1, sep:1, oct:1, nov:1, dec:1 };
+      content = content.replace(/@(today|eod|tomorrow|tmrw|friday|eow|[a-z]{3}-\d{1,2})\b/gi, (token, body) => {
+        const name = body.toLowerCase();
+        const specific = name.match(/^([a-z]{3})-(\d{1,2})$/);
+        if (specific && (!months[specific[1]] || +specific[2] < 1 || +specific[2] > 31)) return token;
+        dates.push('@' + name);
+        type = 'task';
+        return '';
+      });
 
       content = content.replace(/\s+/g, ' ').trim();
-      return { content, raw_input: raw, type, priority, due_date: dueDate, due_time: dueTime, tags };
+      return { content, type, priority, dates, tags };
     }
-
-    function fmtDate(d) { return d.toISOString().split('T')[0]; }
 
     function parseMarkdown(text) {
       return text
@@ -1548,23 +1509,26 @@
       else if (currentView === 'wrapped') renderWrapped();
     }
 
+    function localDateStr(date = new Date()) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function dueDayDiff(dueDate) {
+      const today = localDateStr();
+      return Math.round((Date.parse(dueDate + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000);
+    }
+
     function isOverdue(dueDate) {
       if (!dueDate) return false;
-      const now = new Date();
-      const lisbon = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' });
-      const parts = lisbon.formatToParts(now);
-      const today = new Date(parseInt(parts.find(p => p.type === 'year').value), parseInt(parts.find(p => p.type === 'month').value) - 1, parseInt(parts.find(p => p.type === 'day').value));
-      return new Date(dueDate) < today;
+      return dueDayDiff(dueDate) < 0;
     }
 
     function getDueClass(dueDate) {
       if (!dueDate) return '';
-      const now = new Date();
-      const lisbon = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' });
-      const parts = lisbon.formatToParts(now);
-      const today = new Date(parseInt(parts.find(p => p.type === 'year').value), parseInt(parts.find(p => p.type === 'month').value) - 1, parseInt(parts.find(p => p.type === 'day').value));
-      const due = new Date(dueDate);
-      const diff = Math.floor((due - today) / 86400000);
+      const diff = dueDayDiff(dueDate);
       if (diff < 0) return 'overdue';
       if (diff <= 1) return 'due-soon';
       return 'normal';
@@ -1572,12 +1536,8 @@
 
     function formatDue(dueDate, dueTime) {
       if (!dueDate) return '';
-      const now = new Date();
-      const lisbon = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' });
-      const parts = lisbon.formatToParts(now);
-      const today = new Date(parseInt(parts.find(p => p.type === 'year').value), parseInt(parts.find(p => p.type === 'month').value) - 1, parseInt(parts.find(p => p.type === 'day').value));
       const due = new Date(dueDate);
-      const diff = Math.floor((due - today) / 86400000);
+      const diff = dueDayDiff(dueDate);
       let text = '';
       if (diff < 0) text = Math.abs(diff) + 'd overdue';
       else if (diff === 0) text = 'Today';
@@ -1712,7 +1672,7 @@
       }).join('');
     }
 
-    // ========== BOOKMARKS VIEW (NEW) ==========
+    // ========== BOOKMARKS VIEW ==========
     function renderBookmarks() {
       const container = document.getElementById('bookmarks-container');
 
@@ -1788,8 +1748,11 @@
       const monthsEl = document.getElementById('commit-months');
       const activity = {};
       allItems.forEach(i => {
-        if (i.created_at) { const d = i.created_at.split('T')[0]; activity[d] = (activity[d] || 0) + 1; }
-        if (i.completed && i.updated_at) { const d = i.updated_at.split('T')[0]; activity[d] = (activity[d] || 0) + 1; }
+        [i.created_at, i.completed && i.updated_at].forEach(ts => {
+          if (!ts) return;
+          const d = localDateStr(new Date(ts));
+          activity[d] = (activity[d] || 0) + 1;
+        });
       });
 
       const today = new Date();
@@ -1803,7 +1766,7 @@
           const cell = new Date(start); cell.setDate(cell.getDate() + w * 7 + d);
           if (cell > today) week.push({ date: null, count: 0 });
           else {
-            const str = cell.toISOString().split('T')[0];
+            const str = localDateStr(cell);
             week.push({ date: str, count: activity[str] || 0 });
             if (d === 0 && cell.getMonth() !== currentMonth) {
               currentMonth = cell.getMonth();
@@ -1873,10 +1836,7 @@
       const active = tasks.filter(t => !t.completed);
       const completed = tasks.filter(t => t.completed);
 
-      const now = new Date();
-      const lisbon = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' });
-      const parts = lisbon.formatToParts(now);
-      const todayStr = `${parts.find(p => p.type === 'year').value}-${parts.find(p => p.type === 'month').value}-${parts.find(p => p.type === 'day').value}`;
+      const todayStr = localDateStr();
       const dueToday = tasks.filter(t => !t.completed && t.due_date === todayStr).length;
 
       document.getElementById('active-count').textContent = active.length;
