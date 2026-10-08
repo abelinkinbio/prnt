@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:migrate": "wrangler d1 execute prnt-db --file=./schema.sql"
+    "db:migrate": "wrangler d1 migrations apply prnt-db"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

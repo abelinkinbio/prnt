@@ -76,7 +76,7 @@ prnt/
 │           ├── bookmark.js     # $bookmark
 │           └── quotes.js       # $quotes
 ├── migrations/
-│   └── 001-plugin-system.sql
+│   └── 0001_schema.sql
 ├── wrangler.jsonc
 └── package.json
 ```
