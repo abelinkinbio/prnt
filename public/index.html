@@ -396,6 +396,10 @@
     .matrix-quadrant[data-priority="2"] .quadrant-label { color: var(--priority-p2); }
     .matrix-quadrant[data-priority="3"] .quadrant-label { color: var(--priority-p3); }
     .quadrant-items { flex: 1; overflow-y: auto; padding: 10px; }
+    #matrix-view.active { display: flex; flex-direction: column; gap: 15px; }
+    #matrix-view.active .matrix-grid { flex: 1; min-height: 0; height: auto; }
+    .matrix-unassigned { overflow-y: auto; }
+    .matrix-unassigned:not([hidden]) { max-height: 28%; }
     
     /* Task Items - Priority Border */
     .task-item {
@@ -674,6 +678,8 @@
       .sidebar::before, .sidebar::after { display: none; }
       .command-reference { display: none; }
       .matrix-grid { grid-template-columns: 1fr; height: auto; }
+      #matrix-view.active .matrix-grid { flex: none; height: auto; }
+      .matrix-unassigned:not([hidden]) { max-height: none; }
       .matrix-quadrant { min-height: 200px; }
     }
   </style>
@@ -822,6 +828,7 @@
             <div class="quadrant-items" id="p3-items"></div>
           </div>
         </div>
+        <div class="matrix-unassigned" id="matrix-unassigned" hidden></div>
       </div>
       
       <!-- List View -->
@@ -1563,6 +1570,19 @@
         }
       });
 
+      const loose = tasks.filter(t => t.priority === null);
+      const unassigned = document.getElementById('matrix-unassigned');
+      if (loose.length === 0) {
+        unassigned.hidden = true;
+        unassigned.innerHTML = '';
+      } else {
+        unassigned.hidden = false;
+        unassigned.innerHTML = `<div class="list-section-header">
+          <div class="section-priority" data-priority="null">?</div>
+          <div class="section-info"><h3>UNASSIGNED</h3><p>No Priority</p></div>
+        </div>${loose.map(t => renderTaskItem(t)).join('')}`;
+      }
+
       setupDragAndDrop();
     }
 
@@ -1682,7 +1702,7 @@
       }
 
       container.innerHTML = bookmarks.map(bk => {
-        const tagsHtml = (bk.tags || []).map(t => `<span class="task-tag" onclick="filterByTag('${t}')">#${t}</span>`).join('');
+        const tagsHtml = (bk.tags || []).map(t => `<span class="task-tag">#${t}</span>`).join('');
         // Truncate long URLs for display
         let displayUrl = bk.url;
         try {
@@ -1809,23 +1829,23 @@
     // ========== DRAG AND DROP ==========
     let draggedItem = null;
 
+    document.querySelectorAll('.matrix-quadrant').forEach(q => {
+      q.addEventListener('dragover', e => { e.preventDefault(); q.classList.add('drag-over'); });
+      q.addEventListener('dragleave', () => q.classList.remove('drag-over'));
+      q.addEventListener('drop', e => {
+        e.preventDefault();
+        q.classList.remove('drag-over');
+        if (!draggedItem) return;
+        const id = draggedItem.dataset.id;
+        const newP = parseInt(q.dataset.priority);
+        updateItem(id, { priority: newP });
+      });
+    });
+
     function setupDragAndDrop() {
       document.querySelectorAll('.task-item').forEach(el => {
-        el.addEventListener('dragstart', e => { draggedItem = e.target; e.target.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
-        el.addEventListener('dragend', e => { e.target.classList.remove('dragging'); document.querySelectorAll('.matrix-quadrant').forEach(q => q.classList.remove('drag-over')); draggedItem = null; });
-      });
-
-      document.querySelectorAll('.matrix-quadrant').forEach(q => {
-        q.addEventListener('dragover', e => { e.preventDefault(); q.classList.add('drag-over'); });
-        q.addEventListener('dragleave', () => q.classList.remove('drag-over'));
-        q.addEventListener('drop', e => {
-          e.preventDefault();
-          q.classList.remove('drag-over');
-          if (!draggedItem) return;
-          const id = draggedItem.dataset.id;
-          const newP = parseInt(q.dataset.priority);
-          updateItem(id, { priority: newP });
-        });
+        el.addEventListener('dragstart', e => { draggedItem = el; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+        el.addEventListener('dragend', () => { el.classList.remove('dragging'); document.querySelectorAll('.matrix-quadrant').forEach(q => q.classList.remove('drag-over')); draggedItem = null; });
       });
     }
 
@@ -1844,7 +1864,7 @@
       document.getElementById('completed-count').textContent = completed.length;
 
       // Tab counts
-      document.getElementById('matrix-count').textContent = active.filter(t => t.priority !== null).length;
+      document.getElementById('matrix-count').textContent = active.length;
       document.getElementById('list-count').textContent = active.length;
       document.getElementById('notes-count').textContent = notes.length;
       document.getElementById('bookmarks-count').textContent = bookmarks.length;
