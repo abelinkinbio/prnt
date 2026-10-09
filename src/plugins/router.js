@@ -1,18 +1,3 @@
-// ============================================
-// PRNT - Plugin Router
-// ============================================
-// Takes raw input text and routes it to the
-// correct plugin. This is the "Route" layer
-// in the capture → route → execute model.
-//
-// If the text starts with "$commandname",
-// it looks up that command in the registry
-// and runs its parse → process → respond chain.
-//
-// If there's no $ prefix, it falls through to
-// the __default plugin (normal task/note handling).
-// ============================================
-
 import { registry } from './registry.js';
 
 // Detect if input starts with a $command

@@ -1,16 +1,3 @@
-// ============================================
-// PRNT - Quotes Handler
-// ============================================
-// Powers the /quotes page and the $quotes command.
-// Handles all quote operations:
-//
-// GET    /api/quotes        → list all quotes
-// POST   /api/quotes        → create a new quote
-// GET    /api/quotes/:id     → get single quote
-// PATCH  /api/quotes/:id     → update (edit or favorite)
-// DELETE /api/quotes/:id     → soft-delete a quote
-// ============================================
-
 import { jsonResponse, generateId, now } from '../utils.js';
 
 // GET /api/quotes — list all non-deleted quotes
@@ -173,8 +160,6 @@ export async function handleQuoteUpdate(request, env, quoteId) {
 }
 
 // DELETE /api/quotes/:id — soft-delete a quote
-// (Sets deleted = 1 instead of actually removing the row.
-//  This matches the pattern used in items.js for tasks/notes.)
 export async function handleQuoteDelete(env, quoteId) {
   try {
     const existing = await env.DB.prepare(

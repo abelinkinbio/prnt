@@ -1,10 +1,3 @@
-// ============================================
-// PRNT — Items Handler (List)
-// ============================================
-// Replaces: functions/api/items.js
-// Routes:   GET /api/items
-// Creates go through POST /api/input.
-
 import { jsonResponse } from '../utils.js';
 
 // ---- GET /api/items ----

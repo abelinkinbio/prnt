@@ -36,6 +36,4 @@ export const registry = {
   quotes,
 
   // ─── Add new commands below this line ───
-  // import * as review from './commands/review.js';
-  // review,
 };

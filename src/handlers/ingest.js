@@ -1,15 +1,3 @@
-// ============================================
-// PRNT - Ingest Handler
-// ============================================
-// POST /api/ingest — accepts items from external
-// sources (Raycast, iOS Shortcuts, Email Worker).
-//
-// The API key check remains — this endpoint is
-// for authenticated external tools, not the web UI.
-// Creation and Google sync use the same path as
-// POST /api/input (routeAndSyncInput).
-// ============================================
-
 import { jsonResponse } from '../utils.js';
 import { routeAndSyncInput } from './input.js';
 
