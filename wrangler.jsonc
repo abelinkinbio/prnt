@@ -1,11 +1,4 @@
 {
-  // PRNT — Task Architecture System
-  // Migrated from Cloudflare Pages to Cloudflare Workers
-  //
-  // Why jsonc? It supports comments (unlike .json) and is the
-  // recommended format for Wrangler v4+. Your old wrangler.toml
-  // used Pages-specific config; this uses Workers-native config.
-
   "name": "prnt",
   "compatibility_date": "2025-06-05",
 

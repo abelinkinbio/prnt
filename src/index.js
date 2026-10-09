@@ -1,21 +1,4 @@
-// ============================================
-// PRNT — Main Worker Entry Point
-// ============================================
-//
-// In Cloudflare Pages, each file in functions/ became a route
-// automatically. In Workers, we define routes explicitly.
-//
-// This is actually better because:
-// 1. You can see ALL your routes in one place
-// 2. You can add middleware (like auth checks) easily
-// 3. You have full control over request/response flow
-// 4. You can add scheduled triggers, WebSockets, etc.
-//
-// How it works:
-// - Every HTTP request hits the fetch() handler below
-// - We match the URL path to the right handler function
-// - If no API route matches, Workers Assets serves static files
-// ============================================
+import { corsHeaders, jsonResponse } from './utils.js';
 
 // --- Core handlers ---
 import { handleItemsList } from './handlers/items.js';
@@ -25,8 +8,6 @@ import { handleSummary } from './handlers/summary.js';
 import { handleGoogleAuth, handleGoogleCallback, handleGoogleStatus, handleGoogleDisconnect } from './handlers/auth.js';
 
 // --- Plugin system handlers ---
-// These were built during the plugin system phase but
-// weren't wired into the Workers router after migration.
 import { handleCommandsList } from './handlers/commands.js';
 import { handleBookmarksList, handleBookmarkDelete } from './handlers/bookmarks.js';
 import { handleInput } from './handlers/input.js';
@@ -38,35 +19,10 @@ import {
   handleQuoteDelete
 } from './handlers/quotes.js';
 
-// ============================================
-// CORS Helper
-// ============================================
-function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
-    'Content-Type': 'application/json'
-  };
-}
-
 function handleOptions() {
   return new Response(null, { headers: corsHeaders() });
 }
 
-// ============================================
-// JSON Response Helper
-// ============================================
-function jsonResponse(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: corsHeaders()
-  });
-}
-
-// ============================================
-// Route Matching Helper
-// ============================================
 function matchRoute(path, pattern) {
   const pathParts = path.split('/').filter(Boolean);
   const patternParts = pattern.split('/').filter(Boolean);
@@ -84,9 +40,6 @@ function matchRoute(path, pattern) {
   return params;
 }
 
-// ============================================
-// Main Worker Export
-// ============================================
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);

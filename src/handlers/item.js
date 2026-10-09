@@ -1,13 +1,3 @@
-// ============================================
-// PRNT — Single Item Handler
-// ============================================
-// Replaces: functions/api/items/[id].js
-// Routes:   GET/PATCH/DELETE /api/items/:id
-//
-// In Pages, the [id] in the filename was "dynamic routing"
-// magic. In Workers, we extract :id from the URL ourselves
-// (see matchRoute() in src/index.js).
-
 import { jsonResponse, generateId, now } from '../utils.js';
 import {
   getValidAccessToken, updateCalendarEvent, deleteCalendarEvent,
