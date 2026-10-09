@@ -32,8 +32,6 @@ import { handleBookmarksList, handleBookmarkDelete } from './handlers/bookmarks.
 import { handleInput } from './handlers/input.js';
 import {
   handleQuotesList,
-  handleQuotesCreate,
-  handleQuoteGet,
   handleQuoteUpdate,
   handleQuoteDelete
 } from './handlers/quotes.js';
@@ -165,14 +163,12 @@ export default {
       // --- Quotes ---
       const quoteParams = matchRoute(path, '/api/quotes/:id');
       if (quoteParams) {
-        if (method === 'GET') return await handleQuoteGet(env, quoteParams.id);
         if (method === 'PATCH') return await handleQuoteUpdate(request, env, quoteParams.id);
         if (method === 'DELETE') return await handleQuoteDelete(env, quoteParams.id);
       }
 
-      if (path === '/api/quotes') {
-        if (method === 'GET') return await handleQuotesList(request, env);
-        if (method === 'POST') return await handleQuotesCreate(request, env);
+      if (path === '/api/quotes' && method === 'GET') {
+        return await handleQuotesList(env);
       }
 
       // ---- Static Assets (fallback) ----

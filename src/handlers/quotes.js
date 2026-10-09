@@ -1,41 +1,24 @@
 // ============================================
 // PRNT - Quotes Handler
 // ============================================
-// Powers the /quotes page and the $quotes command.
-// Handles all quote operations:
+// Powers the /quotes page. New quotes are saved
+// by the $quotes command, not this API.
 //
-// GET    /api/quotes        → list all quotes
-// POST   /api/quotes        → create a new quote
-// GET    /api/quotes/:id     → get single quote
+// GET    /api/quotes        → list all non-deleted quotes
 // PATCH  /api/quotes/:id     → update (edit or favorite)
 // DELETE /api/quotes/:id     → soft-delete a quote
 // ============================================
 
-import { jsonResponse, generateId, now } from '../utils.js';
+import { jsonResponse, now } from '../utils.js';
 
-// GET /api/quotes — list all non-deleted quotes
-export async function handleQuotesList(request, env) {
+// GET /api/quotes — every non-deleted quote, newest first
+export async function handleQuotesList(env) {
   try {
-    const url = new URL(request.url);
-
-    // Optional query params for filtering
-    const favoritesOnly = url.searchParams.get('favorites') === 'true';
-    const limit = parseInt(url.searchParams.get('limit')) || 100;
-
-    let sql = `
-      SELECT * FROM quotes 
+    const result = await env.DB.prepare(`
+      SELECT * FROM quotes
       WHERE deleted = 0
-    `;
-    const params = [];
-
-    if (favoritesOnly) {
-      sql += ` AND favorite = 1`;
-    }
-
-    sql += ` ORDER BY created_at DESC LIMIT ?`;
-    params.push(limit);
-
-    const result = await env.DB.prepare(sql).bind(...params).all();
+      ORDER BY created_at DESC
+    `).all();
 
     return jsonResponse({
       quotes: result.results,
@@ -44,78 +27,6 @@ export async function handleQuotesList(request, env) {
   } catch (error) {
     console.error('Error fetching quotes:', error);
     return jsonResponse({ error: 'Failed to fetch quotes' }, 500);
-  }
-}
-
-// POST /api/quotes — create a new quote
-export async function handleQuotesCreate(request, env) {
-  try {
-    const body = await request.json();
-    const {
-      quote_text,
-      attribution = null,
-      source = null,
-      source_input = 'web',
-      raw_input = null
-    } = body;
-
-    if (!quote_text || !quote_text.trim()) {
-      return jsonResponse({ error: 'quote_text is required' }, 400);
-    }
-
-    const id = generateId('quote');
-    const timestamp = now();
-
-    await env.DB.prepare(`
-      INSERT INTO quotes (id, quote_text, attribution, source, favorite, ai_attributed, source_input, raw_input, created_at, updated_at, deleted)
-      VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?, 0)
-    `).bind(
-      id,
-      quote_text.trim(),
-      attribution,
-      source,
-      source_input,
-      raw_input || quote_text,
-      timestamp,
-      timestamp
-    ).run();
-
-    const newQuote = {
-      id,
-      quote_text: quote_text.trim(),
-      attribution,
-      source,
-      favorite: 0,
-      ai_attributed: 0,
-      source_input,
-      raw_input: raw_input || quote_text,
-      created_at: timestamp,
-      updated_at: timestamp,
-      deleted: 0
-    };
-
-    return jsonResponse({ quote: newQuote }, 201);
-  } catch (error) {
-    console.error('Error creating quote:', error);
-    return jsonResponse({ error: 'Failed to create quote' }, 500);
-  }
-}
-
-// GET /api/quotes/:id — get a single quote
-export async function handleQuoteGet(env, quoteId) {
-  try {
-    const quote = await env.DB.prepare(`
-      SELECT * FROM quotes WHERE id = ? AND deleted = 0
-    `).bind(quoteId).first();
-
-    if (!quote) {
-      return jsonResponse({ error: 'Quote not found' }, 404);
-    }
-
-    return jsonResponse({ quote });
-  } catch (error) {
-    console.error('Error fetching quote:', error);
-    return jsonResponse({ error: 'Failed to fetch quote' }, 500);
   }
 }
 
@@ -156,9 +67,9 @@ export async function handleQuoteUpdate(request, env, quoteId) {
       `UPDATE quotes SET ${updates.join(', ')} WHERE id = ? AND deleted = 0`
     ).bind(...values).run();
 
-    // Return the updated quote
+    // Read back only a live row. A soft-deleted id must 404.
     const quote = await env.DB.prepare(
-      `SELECT * FROM quotes WHERE id = ?`
+      `SELECT * FROM quotes WHERE id = ? AND deleted = 0`
     ).bind(quoteId).first();
 
     if (!quote) {
