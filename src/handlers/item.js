@@ -2,7 +2,7 @@
 // PRNT — Single Item Handler
 // ============================================
 // Replaces: functions/api/items/[id].js
-// Routes:   GET/PATCH/DELETE /api/items/:id
+// Routes:   GET/PATCH /api/items/:id
 //
 // In Pages, the [id] in the filename was "dynamic routing"
 // magic. In Workers, we extract :id from the URL ourselves
@@ -61,7 +61,7 @@ async function syncDeleteToGoogle(env, item) {
 // ---- Helper: Fetch item with tags ----
 
 async function getItemWithTags(env, itemId) {
-  const itemResult = await env.DB.prepare(`SELECT * FROM items WHERE id = ?`).bind(itemId).first();
+  const itemResult = await env.DB.prepare(`SELECT * FROM items WHERE id = ? AND deleted = 0`).bind(itemId).first();
   if (!itemResult) return null;
 
   const tagsResult = await env.DB.prepare(`SELECT tag FROM tags WHERE item_id = ?`).bind(itemId).all();
@@ -118,6 +118,12 @@ export async function handleItemUpdate(request, env, ctx, itemId) {
       return jsonResponse({ error: 'No valid fields to update' }, 400);
     }
 
+    const prior = body.deleted ? await getItemWithTags(env, itemId) : null;
+    if (body.deleted && !prior) return jsonResponse({ error: 'Item not found' }, 404);
+    if (body.deleted) {
+      updates.push('google_calendar_event_id = NULL', 'google_task_id = NULL');
+    }
+
     // Always update the timestamp
     updates.push('updated_at = ?');
     values.push(now());
@@ -139,36 +145,17 @@ export async function handleItemUpdate(request, env, ctx, itemId) {
       }
     }
 
-    const item = await getItemWithTags(env, itemId);
-    if (!item) return jsonResponse({ error: 'Item not found' }, 404);
-
-    // Sync to Google in background
-    if (!item.deleted) {
-      ctx.waitUntil(syncUpdateToGoogle(env, item));
+    if (body.deleted) {
+      ctx.waitUntil(syncDeleteToGoogle(env, prior));
+      return jsonResponse({ item: { ...prior, deleted: true } });
     }
 
+    const item = await getItemWithTags(env, itemId);
+    if (!item) return jsonResponse({ error: 'Item not found' }, 404);
+    ctx.waitUntil(syncUpdateToGoogle(env, item));
     return jsonResponse({ item });
   } catch (error) {
     console.error('Error updating item:', error);
     return jsonResponse({ error: 'Failed to update item' }, 500);
-  }
-}
-
-// ---- DELETE /api/items/:id ----
-
-export async function handleItemDelete(env, ctx, itemId) {
-  try {
-    const item = await env.DB.prepare(`SELECT * FROM items WHERE id = ?`).bind(itemId).first();
-    if (!item) return jsonResponse({ error: 'Item not found' }, 404);
-
-    await env.DB.prepare(`DELETE FROM tags WHERE item_id = ?`).bind(itemId).run();
-    await env.DB.prepare(`DELETE FROM items WHERE id = ?`).bind(itemId).run();
-
-    ctx.waitUntil(syncDeleteToGoogle(env, item));
-
-    return jsonResponse({ success: true, id: itemId });
-  } catch (error) {
-    console.error('Error deleting item:', error);
-    return jsonResponse({ error: 'Failed to delete item' }, 500);
   }
 }

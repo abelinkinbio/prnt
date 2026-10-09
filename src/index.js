@@ -19,7 +19,7 @@
 
 // --- Core handlers ---
 import { handleItemsList } from './handlers/items.js';
-import { handleItemGet, handleItemUpdate, handleItemDelete } from './handlers/item.js';
+import { handleItemGet, handleItemUpdate } from './handlers/item.js';
 import { handleIngest } from './handlers/ingest.js';
 import { handleSummary } from './handlers/summary.js';
 import { handleGoogleAuth, handleGoogleCallback, handleGoogleStatus, handleGoogleDisconnect } from './handlers/auth.js';
@@ -108,12 +108,11 @@ export default {
         return await handleItemsList(env);
       }
 
-      // --- Single item (get, update, delete) ---
+      // --- Single item (get, update) ---
       const itemParams = matchRoute(path, '/api/items/:id');
       if (itemParams) {
         if (method === 'GET') return await handleItemGet(env, itemParams.id);
         if (method === 'PATCH') return await handleItemUpdate(request, env, ctx, itemParams.id);
-        if (method === 'DELETE') return await handleItemDelete(env, ctx, itemParams.id);
       }
 
       // --- Ingest (external input from Raycast, iOS, email) ---
