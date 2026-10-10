@@ -45,6 +45,9 @@ export async function handleIngest(request, env, ctx) {
       source
     }, 201);
   } catch (error) {
+    if (error.status === 400) {
+      return jsonResponse({ error: error.message }, 400);
+    }
     console.error('Ingest error:', error);
     return jsonResponse({ error: 'Failed to create item' }, 500);
   }

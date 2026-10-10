@@ -14,23 +14,6 @@
   
   <style>
     :root {
-      --bg-primary: #0a1628;
-      --bg-secondary: rgba(10, 22, 40, 0.95);
-      --bg-grid: rgba(30, 73, 118, 0.3);
-      --border-color: #1e4976;
-      --border-accent: #3d8eff;
-      --text-primary: #e8f1ff;
-      --text-secondary: #adb5bd;
-      --text-muted: #6c757d;
-      --accent-color: #3d8eff;
-      --accent-light: rgba(61, 142, 255, 0.15);
-      --success-color: #51cf66;
-      --warning-color: #fcc419;
-      --error-color: #ff6b6b;
-      --font-mono: 'JetBrains Mono', monospace;
-    }
-    
-    [data-theme="light"] {
       --bg-primary: #f8f9fa;
       --bg-secondary: #ffffff;
       --bg-grid: rgba(206, 212, 218, 0.4);
@@ -41,6 +24,23 @@
       --text-muted: #868e96;
       --accent-color: #228be6;
       --accent-light: rgba(34, 139, 230, 0.1);
+      --success-color: #51cf66;
+      --warning-color: #fcc419;
+      --error-color: #ff6b6b;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    
+    [data-theme="dark"] {
+      --bg-primary: #0a1628;
+      --bg-secondary: rgba(10, 22, 40, 0.95);
+      --bg-grid: rgba(30, 73, 118, 0.3);
+      --border-color: #1e4976;
+      --border-accent: #3d8eff;
+      --text-primary: #e8f1ff;
+      --text-secondary: #adb5bd;
+      --text-muted: #6c757d;
+      --accent-color: #3d8eff;
+      --accent-light: rgba(61, 142, 255, 0.15);
     }
     
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -60,8 +60,6 @@
       background-size: 20px 20px;
       display: flex;
       flex-direction: column;
-      user-select: none;
-      -webkit-user-select: none;
     }
     
     /* Header */
@@ -134,13 +132,15 @@
     /* Main Quote Container */
     .quote-container {
       flex: 1;
+      min-height: 0;
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: safe center;
       align-items: center;
       padding: 100px 40px 140px;
       text-align: center;
       position: relative;
+      overflow-y: auto;
       touch-action: pan-y;
     }
     
@@ -179,6 +179,8 @@
       margin-bottom: 30px;
       position: relative;
       z-index: 1;
+      user-select: text;
+      -webkit-user-select: text;
       transition: opacity 0.3s ease;
     }
     
@@ -622,20 +624,13 @@
     // ========== THEME ==========
     function initTheme() {
       const saved = localStorage.getItem('prnt-theme');
-      if (saved === 'light') {
-        document.documentElement.setAttribute('data-theme', 'light');
-      }
+      if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
     }
     
     function toggleTheme() {
-      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-      if (isLight) {
-        document.documentElement.removeAttribute('data-theme');
-        localStorage.setItem('prnt-theme', 'dark');
-      } else {
-        document.documentElement.setAttribute('data-theme', 'light');
-        localStorage.setItem('prnt-theme', 'light');
-      }
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isDark) { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('prnt-theme', 'light'); }
+      else { document.documentElement.setAttribute('data-theme', 'dark'); localStorage.setItem('prnt-theme', 'dark'); }
     }
     
     initTheme();
@@ -645,6 +640,10 @@
       try {
         const res = await fetch('/api/quotes');
         const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Failed to load quotes', 'error');
+          return;
+        }
         quotes = data.quotes || [];
         updateCounter();
         
@@ -712,44 +711,40 @@
     }
     
     // ========== NAVIGATION ==========
+    function animateQuote(className, update) {
+      const wrapper = document.getElementById('quote-wrapper');
+      wrapper.classList.remove('swipe-left', 'swipe-right');
+      void wrapper.offsetWidth;
+      wrapper.addEventListener('animationend', () => {
+        wrapper.classList.remove(className);
+      }, { once: true });
+      wrapper.classList.add(className);
+      setTimeout(update, 150);
+    }
+    
     function randomQuote() {
       if (quotes.length === 0) return;
-      
-      const wrapper = document.getElementById('quote-wrapper');
-      wrapper.classList.add('swipe-left');
-      
-      setTimeout(() => {
+      animateQuote('swipe-left', () => {
         const randomIdx = Math.floor(Math.random() * quotes.length);
         currentIndex = randomIdx;
         displayQuote(quotes[randomIdx]);
-        wrapper.classList.remove('swipe-left');
-      }, 150);
+      });
     }
     
     function nextQuote() {
       if (quotes.length === 0) return;
-      
-      const wrapper = document.getElementById('quote-wrapper');
-      wrapper.classList.add('swipe-left');
-      
-      setTimeout(() => {
+      animateQuote('swipe-left', () => {
         currentIndex = (currentIndex + 1) % quotes.length;
         displayQuote(quotes[currentIndex]);
-        wrapper.classList.remove('swipe-left');
-      }, 150);
+      });
     }
     
     function previousQuote() {
       if (quotes.length === 0) return;
-      
-      const wrapper = document.getElementById('quote-wrapper');
-      wrapper.classList.add('swipe-right');
-      
-      setTimeout(() => {
+      animateQuote('swipe-right', () => {
         currentIndex = (currentIndex - 1 + quotes.length) % quotes.length;
         displayQuote(quotes[currentIndex]);
-        wrapper.classList.remove('swipe-right');
-      }, 150);
+      });
     }
     
     // ========== ACTIONS ==========

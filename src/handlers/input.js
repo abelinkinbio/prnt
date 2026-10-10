@@ -45,6 +45,9 @@ export async function handleInput(request, env, ctx) {
 
     return jsonResponse(result, 201);
   } catch (error) {
+    if (error.status === 400) {
+      return jsonResponse({ error: error.message }, 400);
+    }
     console.error('Input handler error:', error);
     return jsonResponse({ error: 'Failed to process input' }, 500);
   }
