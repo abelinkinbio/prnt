@@ -2,14 +2,14 @@
 
 The thinnest possible layer between your thoughts and the systems you need them in.
 
-PRNT is a personal productivity tool that acts as middleware between your brain and everything else. Tasks, notes, bookmarks, quotes — all driven by shorthand commands, all entering through the same pipeline. Type it in the web app, fire it from Raycast, send it from an iOS Shortcut, or email it in. PRNT parses the shorthand and routes it to the right place.
+PRNT is a personal productivity tool that acts as middleware between your brain and everything else. Tasks, notes, bookmarks, quotes — all driven by shorthand commands, all entering through the same pipeline. Type it in the web app, fire it from Raycast, or send it from an iOS Shortcut. PRNT parses the shorthand and routes it to the right place.
 
-It's part container, part router. Plain text becomes tasks and notes. `$commands` trigger plugins that store, transform, or push content to external systems. The plugin architecture means adding a new command is a single file and one line in the registry. ⚡
+It's part container, part router. Plain text becomes tasks and notes. `$commands` trigger plugins that store, transform, or push content to external systems. Adding a command is a plugin file, an import at the top of `src/plugins/registry.js`, and a registry entry. ⚡
 
 ```
 ┌─────────────────────────────────────────┐
 │  CAPTURE                                │
-│  Web App · Raycast · iOS · Email        │
+│  Web App · Raycast · iOS                │
 └──────────────────┬──────────────────────┘
                    ▼
 ┌─────────────────────────────────────────┐
@@ -25,7 +25,7 @@ It's part container, part router. Plain text becomes tasks and notes. `$commands
 
 Every input channel, every command type — same pipeline.
 
-Powered by Cloudflare Workers, D1, Email Workers, and Workers Assets.
+Powered by Cloudflare Workers, D1, and Workers Assets. The worker exports `fetch` only. Email is an external client of `POST /api/ingest`.
 
 ## 📖 Shorthand
 
@@ -39,7 +39,7 @@ $quotes The obstacle is the way - Marcus    → saved quote
 | Shorthand | What it does |
 |-----------|-------------|
 | `p0` `p1` `p2` `p3` | Priority (Eisenhower quadrants) |
-| `@today` `@tmrw` `@eow` | Due dates |
+| `@today` `@tomorrow` `@tmrw` `@friday` `@eow` | Due dates |
 | `@eod` | End of day (6pm) |
 | `@jan-25` | Specific date |
 | `#tag` | Tags |
@@ -116,10 +116,10 @@ npm run dev
 
 Adding a new `$command`:
 
-1. Create `src/plugins/commands/yourcommand.js` — export `name`, `parse()`, `process()`, `respond()`
-2. Import and register in `src/plugins/registry.js`
-3. Write a D1 migration for any new tables
-4. Run migration, deploy
+1. Create `src/plugins/commands/yourcommand.js` — export `name`, `description`, `syntax`, `parse(raw)`, `process(parsed, env)`, `respond()`
+2. Import it at the top of `src/plugins/registry.js` and add a registry entry
+3. Write a D1 migration for any new tables (`migrations/0002_name.sql`, same numbering as `0001_schema.sql`)
+4. `npm run db:migrate`, then `npm run deploy`
 
 See [PLUGINS.md](PLUGINS.md) for the full guide.
 
