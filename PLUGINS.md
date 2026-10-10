@@ -2,116 +2,114 @@
 
 ## How $commands work
 
-Every piece of input flows through three layers:
-
 ```
 CAPTURE → ROUTE → EXECUTE
 ```
 
-1. **Capture**: Input arrives from any channel (web, iOS, Raycast, email).
-
-2. **Route**: The router (`src/plugins/router.js`) checks if the text starts with `$commandname`. Match → dispatch to plugin. No match → fall through to default handler (tasks/notes).
-
-3. **Execute**: The plugin runs three functions: `parse()` → `process()` → `respond()`.
+1. **Capture**: `POST /api/input` and `POST /api/ingest` pass the raw string to the router.
+2. **Route**: `src/plugins/router.js` looks up a leading `$commandname` in the registry. A known command is dispatched to that plugin. Anything else, including an unknown `$command`, falls through to `__default` (tasks and notes).
+3. **Execute**: `parse(raw)` → `process(parsed, env)` → `respond(result)`. `POST /api/input` returns that object with HTTP 201.
 
 ## Adding a new command
 
-Let's walk through adding `$log` — a daily check-in logger.
+`$log` is a daily check-in. Copy the shape of `src/plugins/commands/bookmark.js`.
 
 ### Step 1: Create the plugin file
 
 Create `src/plugins/commands/log.js`:
 
 ```js
-// ============================================
-// PRNT — $log Command Plugin
-// ============================================
+import { generateId, now } from '../../utils.js';
 
 export const name = 'log';
 export const description = 'Daily check-in with mood, energy, and sleep';
 export const syntax = '$log mood:8 energy:7 sleep:6.5 — went for a run';
 
-function generateId() {
-  return 'log_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-}
+// `raw` is the full input, including "$log". Strip the prefix here.
+export function parse(raw) {
+  let text = raw.replace(/^\$log\s+/i, '').trim();
 
-// Step 1: Parse — extract structured data from raw input
-export function parse(envelope) {
-  let content = envelope.raw.trim();
+  const mood = text.match(/mood:(\d+\.?\d*)/i);
+  const energy = text.match(/energy:(\d+\.?\d*)/i);
+  const sleep = text.match(/sleep:(\d+\.?\d*)/i);
 
-  const mood = content.match(/mood:(\d+\.?\d*)/i);
-  const energy = content.match(/energy:(\d+\.?\d*)/i);
-  const sleep = content.match(/sleep:(\d+\.?\d*)/i);
+  text = text.replace(/\b(mood|energy|sleep):\d+\.?\d*/gi, '');
 
-  content = content.replace(/\b(mood|energy|sleep):\d+\.?\d*/gi, '');
-
-  let note = '';
-  const dashSplit = content.split(/\s*(?:—|--)\s*/);
+  let note = null;
+  const dashSplit = text.split(/\s[—\-]\s/);
   if (dashSplit.length > 1) {
-    note = dashSplit.slice(1).join(' — ').trim();
-  } else {
-    note = content.trim();
+    note = dashSplit.slice(1).join(' — ').trim() || null;
   }
 
   return {
     mood: mood ? parseFloat(mood[1]) : null,
     energy: energy ? parseFloat(energy[1]) : null,
     sleep: sleep ? parseFloat(sleep[1]) : null,
-    note: note || null,
-    source: envelope.source || 'web'
+    note,
+    raw_input: raw
   };
 }
 
-// Step 2: Process — write to the database
-export async function process(parsed, env, ctx) {
-  const id = generateId();
-  const timestamp = new Date().toISOString();
+export async function process(parsed, env) {
+  const id = generateId('log');
+  const timestamp = now();
 
   await env.DB.prepare(`
-    INSERT INTO daily_logs (id, mood, energy, sleep, note, source, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).bind(id, parsed.mood, parsed.energy, parsed.sleep, parsed.note, parsed.source, timestamp).run();
+    INSERT INTO daily_logs (id, mood, energy, sleep, note, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(
+    id,
+    parsed.mood,
+    parsed.energy,
+    parsed.sleep,
+    parsed.note,
+    timestamp
+  ).run();
 
   return {
-    success: true,
-    item: { id, ...parsed, created_at: timestamp }
+    id,
+    mood: parsed.mood,
+    energy: parsed.energy,
+    sleep: parsed.sleep,
+    note: parsed.note,
+    created_at: timestamp
   };
 }
 
-// Step 3: Respond — format the response
 export function respond(result) {
-  if (!result.success) {
-    return { status: 400, body: { error: result.error, command: 'log' } };
-  }
   return {
-    status: 201,
-    body: {
-      item: result.item,
-      command: 'log',
-      message: 'Check-in logged'
-    }
+    command: 'log',
+    message: 'Check-in logged',
+    item: result
   };
 }
 ```
 
 ### Step 2: Register it
 
-In `src/plugins/registry.js`, add two lines:
+Registration is two edits in `src/plugins/registry.js`: an import at the top of the file, and a key on the registry object.
 
 ```js
+import * as __default from './commands/default.js';
+import * as bookmark from './commands/bookmark.js';
+import * as quotes from './commands/quotes.js';
 import * as log from './commands/log.js';
 
 export const registry = {
   __default,
   bookmark,
   quotes,
-  log,          // ← Add this
+  log,
 };
 ```
 
+The registry key is the command name (`$log` → `log`). `GET /api/commands` lists commands from this object and skips `__default`.
+
 ### Step 3: Write the D1 migration
 
-Create `migrations/002-log-plugin.sql`:
+Add a top-level file next to `migrations/0001_schema.sql`, numbered the same way:
+
+`migrations/0002_daily_logs.sql`
 
 ```sql
 CREATE TABLE IF NOT EXISTS daily_logs (
@@ -120,20 +118,17 @@ CREATE TABLE IF NOT EXISTS daily_logs (
   energy REAL,
   sleep REAL,
   note TEXT,
-  source TEXT DEFAULT 'web',
   created_at TEXT NOT NULL
 );
-
-INSERT OR IGNORE INTO commands (name, description, syntax, enabled, created_at)
-VALUES ('log', 'Daily check-in with mood, energy, and sleep',
-        '$log mood:8 energy:7 sleep:6.5 — went for a run', 1, datetime('now'));
 ```
 
-### Step 4: Run the migration
+### Step 4: Apply the migration
 
 ```bash
-npx wrangler d1 execute prnt-db --remote --file=./migrations/002-log-plugin.sql
+npm run db:migrate
 ```
+
+That script runs `wrangler d1 migrations apply prnt-db`.
 
 ### Step 5: Deploy
 
@@ -141,50 +136,17 @@ npx wrangler d1 execute prnt-db --remote --file=./migrations/002-log-plugin.sql
 npm run deploy
 ```
 
-That's it. `$log mood:8 energy:7` now works from every input channel.
-
----
+`$log mood:8 energy:7` then goes through the same router.
 
 ## The plugin contract
 
-Every plugin must export:
+| Export | Purpose |
+|--------|---------|
+| `name` | Command name, lowercase, no `$` |
+| `description` | Autocomplete text. `GET /api/commands` returns it |
+| `syntax` | Example usage. The same endpoint returns it, and the input preview shows it |
+| `parse(raw)` | Strip `$command` and return structured data. `raw` is the full string |
+| `process(parsed, env)` | Persist or call out. Arguments are the parsed object and `env` |
+| `respond(result)` | Return `{ command, message, item }`. `POST /api/input` sends that body with HTTP 201 |
 
-| Export | Type | Purpose |
-|--------|------|---------|
-| `name` | `string` | Command name (matches `$name`) |
-| `description` | `string` | Human-readable (shown in UI) |
-| `syntax` | `string` | Example usage |
-| `parse(envelope)` | `function` | Extract structured data from raw text |
-| `process(parsed, env, ctx)` | `async function` | Do the work (DB writes, API calls) |
-| `respond(result)` | `function` | Format the JSON response |
-
-### The envelope
-
-```js
-{
-  raw: "text after $command was stripped",
-  source: "web" | "ios-shortcut" | "raycast" | "email" | "api",
-  command: "bookmark",
-  meta: { ... }  // optional channel-specific context
-}
-```
-
-### The response
-
-```js
-{
-  status: 201,
-  body: {
-    item: { ... },
-    command: "bookmark",
-    message: "Bookmark saved"
-  }
-}
-```
-
-## Tips
-
-- **Keep plugins simple.** One command, one job.
-- **Use `ctx.waitUntil()` for slow work.** DB write first, then background tasks.
-- **Prefix your IDs.** `bk_`, `log_`, `rev_` — easy to identify at a glance.
-- **Follow existing patterns.** Copy `default.js` or `bookmark.js`. Don't invent.
+Copy `bookmark.js`. Prefix ids with `generateId()` from `src/utils.js`.
