@@ -28,5 +28,14 @@
       "database_name": "prnt-db",
       "database_id": "f4974a76-0ae1-4447-8d0a-e268f1dbd4f8"
     }
-  ]
+  ],
+
+  // Workers Logs, plus traces. Sampling stays at 1 (every request) for this small app.
+  "observability": {
+    "enabled": true,
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    }
+  }
 }
