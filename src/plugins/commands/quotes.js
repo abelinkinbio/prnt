@@ -66,6 +66,12 @@ export function parse(raw) {
 
 // Save the quote to D1
 export async function process(parsed, env) {
+  if (!parsed.quote_text || !parsed.quote_text.trim()) {
+    const error = new Error('quote_text is required');
+    error.status = 400;
+    throw error;
+  }
+
   const id = generateId('quote');
   const timestamp = now();
 
