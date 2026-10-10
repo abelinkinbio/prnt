@@ -24,7 +24,7 @@ export const syntax = '$quotes The obstacle is the way - Marcus Aurelius (Medita
 // Parse "$quotes text - attribution (source)" into structured data
 export function parse(raw) {
   // Remove the "$quotes " prefix
-  let text = raw.replace(/^\$quotes\s+/i, '').trim();
+  let text = raw.replace(/^\$quotes\s*/i, '').trim();
 
   // Extract source in parentheses at the end, e.g. "(Meditations)"
   let source = null;
