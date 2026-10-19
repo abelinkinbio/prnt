@@ -14,8 +14,8 @@ export async function handleSummary(env) {
     const sevenDaysAgoStr = sevenDaysAgo.toISOString();
 
     const recentItems = await env.DB.prepare(`
-      SELECT * FROM items 
-      WHERE created_at >= ? OR updated_at >= ?
+      SELECT * FROM items
+      WHERE deleted = 0 AND (created_at >= ? OR updated_at >= ?)
       ORDER BY created_at DESC
     `).bind(sevenDaysAgoStr, sevenDaysAgoStr).all();
 

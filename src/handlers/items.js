@@ -12,7 +12,8 @@ import { jsonResponse } from '../utils.js';
 export async function handleItemsList(env) {
   try {
     const itemsResult = await env.DB.prepare(`
-      SELECT * FROM items 
+      SELECT * FROM items
+      WHERE deleted = 0
       ORDER BY 
         CASE WHEN completed = 1 THEN 1 ELSE 0 END,
         priority ASC NULLS LAST,
