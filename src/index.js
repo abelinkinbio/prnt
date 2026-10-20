@@ -2,7 +2,7 @@ import { corsHeaders, jsonResponse } from './utils.js';
 
 // --- Core handlers ---
 import { handleItemsList } from './handlers/items.js';
-import { handleItemGet, handleItemUpdate, handleItemDelete } from './handlers/item.js';
+import { handleItemGet, handleItemUpdate } from './handlers/item.js';
 import { handleIngest } from './handlers/ingest.js';
 import { handleSummary } from './handlers/summary.js';
 import { handleGoogleAuth, handleGoogleCallback, handleGoogleStatus, handleGoogleDisconnect } from './handlers/auth.js';
@@ -13,8 +13,6 @@ import { handleBookmarksList, handleBookmarkDelete } from './handlers/bookmarks.
 import { handleInput } from './handlers/input.js';
 import {
   handleQuotesList,
-  handleQuotesCreate,
-  handleQuoteGet,
   handleQuoteUpdate,
   handleQuoteDelete
 } from './handlers/quotes.js';
@@ -61,12 +59,11 @@ export default {
         return await handleItemsList(env);
       }
 
-      // --- Single item (get, update, delete) ---
+      // --- Single item (get, update) ---
       const itemParams = matchRoute(path, '/api/items/:id');
       if (itemParams) {
         if (method === 'GET') return await handleItemGet(env, itemParams.id);
         if (method === 'PATCH') return await handleItemUpdate(request, env, ctx, itemParams.id);
-        if (method === 'DELETE') return await handleItemDelete(env, ctx, itemParams.id);
       }
 
       // --- Ingest (external input from Raycast, iOS, email) ---
@@ -118,14 +115,12 @@ export default {
       // --- Quotes ---
       const quoteParams = matchRoute(path, '/api/quotes/:id');
       if (quoteParams) {
-        if (method === 'GET') return await handleQuoteGet(env, quoteParams.id);
         if (method === 'PATCH') return await handleQuoteUpdate(request, env, quoteParams.id);
         if (method === 'DELETE') return await handleQuoteDelete(env, quoteParams.id);
       }
 
-      if (path === '/api/quotes') {
-        if (method === 'GET') return await handleQuotesList(request, env);
-        if (method === 'POST') return await handleQuotesCreate(request, env);
+      if (path === '/api/quotes' && method === 'GET') {
+        return await handleQuotesList(env);
       }
 
       // ---- Static Assets (fallback) ----
