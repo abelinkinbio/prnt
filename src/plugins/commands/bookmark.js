@@ -1,19 +1,3 @@
-// ============================================
-// PRNT Plugin - $bookmark
-// ============================================
-// Saves URLs with optional notes and tags.
-//
-// Syntax examples:
-//   $bookmark https://example.com
-//   $bookmark https://example.com — great article
-//   $bookmark https://example.com — great article #design #reading
-//
-// The parser looks for:
-//   1. A URL (starts with http:// or https://)
-//   2. A note after " — " or " - " (em dash or hyphen)
-//   3. Tags with #hashtag syntax
-// ============================================
-
 import { generateId, now } from '../../utils.js';
 
 export const name = 'bookmark';

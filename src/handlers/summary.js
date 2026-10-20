@@ -1,9 +1,3 @@
-// ============================================
-// PRNT — AI Summary Handler
-// ============================================
-// Replaces: functions/api/summary.js
-// Route:    POST /api/summary
-
 import { jsonResponse } from '../utils.js';
 
 export async function handleSummary(env) {

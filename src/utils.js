@@ -1,10 +1,3 @@
-// ============================================
-// PRNT — Shared Utilities
-// ============================================
-// Parser logic and helpers used by multiple handlers.
-// In the Pages version, this parser was duplicated in
-// both ingest.js and index.html. Now it lives in one place.
-
 // ---- Response Helpers ----
 
 export function corsHeaders() {

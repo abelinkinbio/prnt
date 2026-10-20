@@ -1,13 +1,3 @@
-// ============================================
-// PRNT — Google OAuth Handler
-// ============================================
-// Replaces: functions/api/auth/google/index.js
-//           functions/api/auth/google/callback.js
-//           functions/api/auth/google/status.js
-//
-// In Pages, these were 3 separate files in nested dirs.
-// In Workers, they're 4 exported functions in one file.
-
 import { jsonResponse, htmlResponse } from '../utils.js';
 import { getAuthUrl, exchangeCodeForTokens } from '../google.js';
 

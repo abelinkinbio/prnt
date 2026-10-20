@@ -1,19 +1,3 @@
-// ============================================
-// PRNT Plugin - Default (Tasks & Notes)
-// ============================================
-// This is the fallback handler. When the user
-// types something WITHOUT a $command prefix,
-// the router sends it here. It uses the same
-// parseShorthand() logic for p0, @today, #tags, etc.
-//
-// This is a "plugin" in the sense that it has
-// the same shape as every other command:
-//   name, description, parse(), process(), respond()
-//
-// But it's special — it's the only plugin that
-// runs when NO $command is detected.
-// ============================================
-
 import { parseShorthand, generateId, now } from '../../utils.js';
 
 export const name = 'default';

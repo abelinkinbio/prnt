@@ -1,15 +1,3 @@
-// ============================================
-// PRNT - Bookmarks Handler
-// ============================================
-// Handles reading and deleting bookmarks.
-// Bookmarks are created by the $bookmark command
-// (handled in the plugin system / ingest route),
-// so this file only needs GET and DELETE.
-//
-// GET  /api/bookmarks     → list all bookmarks
-// DELETE /api/bookmarks?id=xxx → delete one bookmark
-// ============================================
-
 import { jsonResponse } from '../utils.js';
 
 // GET /api/bookmarks — list all bookmarks with their tags

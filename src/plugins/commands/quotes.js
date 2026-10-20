@@ -1,20 +1,3 @@
-// ============================================
-// PRNT Plugin - $quotes
-// ============================================
-// Saves quotes with optional attribution and source.
-//
-// Syntax examples:
-//   $quotes The obstacle is the way
-//   $quotes The obstacle is the way - Marcus Aurelius
-//   $quotes The obstacle is the way - Marcus Aurelius (Meditations)
-//   $quotes "The obstacle is the way" - Marcus Aurelius
-//
-// The parser looks for:
-//   1. Quote text (with or without surrounding quotes)
-//   2. Attribution after " - " or " — "
-//   3. Source in parentheses at the end
-// ============================================
-
 import { generateId, now } from '../../utils.js';
 
 export const name = 'quotes';

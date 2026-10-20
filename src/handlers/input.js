@@ -1,19 +1,3 @@
-// ============================================
-// PRNT - Input Handler
-// ============================================
-// POST /api/input — the single entry point for
-// all user input from the web app.
-//
-// This replaces the old pattern where the frontend
-// posted directly to /api/items. Now ALL input
-// goes through the plugin router, which detects
-// $commands and dispatches to the right handler.
-//
-// Normal text (no $ prefix) still creates tasks
-// and notes exactly like before — the default
-// plugin handles that.
-// ============================================
-
 import { jsonResponse } from '../utils.js';
 import { routeInput } from '../plugins/router.js';
 import { syncToGoogle } from '../google.js';
