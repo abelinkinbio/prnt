@@ -1,0 +1,5 @@
+# Production values are Workers secrets (`wrangler secret put`).
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+PRNT_API_KEY=
+ANTHROPIC_API_KEY=
