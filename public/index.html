@@ -304,6 +304,8 @@
       font-size: 11px;
       padding: 8px;
       cursor: pointer;
+      text-align: center;
+      text-decoration: none;
       transition: all 0.2s;
     }
     .theme-toggle:hover { border-color: var(--accent-color); color: var(--accent-color); }
@@ -778,6 +780,7 @@
       </div>
       
       <div class="sidebar-footer">
+        <a class="theme-toggle" href="/quotes">Quotes</a>
         <button class="theme-toggle" onclick="toggleTheme()">◑ Toggle Theme</button>
       </div>
     </aside>
@@ -1114,29 +1117,31 @@
         return;
       }
 
-      // Check for $command prefix
+      // $word is a command only when the name is in the registry.
+      // Anything else is a normal task/note, same as the router.
       const cmdMatch = val.match(/^\$(\w+)\s*([\s\S]*)/);
       if (cmdMatch) {
         const cmdName = cmdMatch[1].toLowerCase();
         const cmdContent = cmdMatch[2].trim();
         const knownCmd = availableCommands.find(c => c.name === cmdName);
 
-        // Enter command mode — purple border and preview
-        mainInput.classList.add('command-mode');
-        livePreview.classList.add('active', 'command-mode');
+        if (knownCmd) {
+          mainInput.classList.add('command-mode');
+          livePreview.classList.add('active', 'command-mode');
 
-        let tags = [{ type: 'command', text: '$' + cmdName }];
+          const tags = [{ type: 'command', text: '$' + cmdName }];
+          // $quotes stores no #tags. Other commands (bookmark) do.
+          if (cmdName !== 'quotes') {
+            const tagMatches = cmdContent.match(/#(\w+)/g);
+            if (tagMatches) tagMatches.forEach(t => tags.push({ type: 'tag', text: t }));
+          }
 
-        // Extract #tags from the content for preview
-        const tagMatches = cmdContent.match(/#(\w+)/g);
-        if (tagMatches) tagMatches.forEach(t => tags.push({ type: 'tag', text: t }));
-
-        previewContent.textContent = cmdContent || (knownCmd ? knownCmd.syntax : '(type content after $command)');
-        previewTags.innerHTML = tags.map(t =>
-          `<span class="preview-tag ${t.type}">${t.text}</span>`
-        ).join('');
-
-        return;
+          previewContent.textContent = cmdContent || knownCmd.syntax;
+          previewTags.innerHTML = tags.map(t =>
+            `<span class="preview-tag ${t.type}">${t.text}</span>`
+          ).join('');
+          return;
+        }
       }
 
       // No $command — use existing task/note preview parser
@@ -1279,6 +1284,9 @@
           render();
           updateStats();
           showToast(data.message || 'Bookmark saved');
+        } else if (command === 'quotes') {
+          // Quote lives on /quotes, not in the task or bookmark lists.
+          showToast(data.message || 'Quote saved');
         } else if (data.item) {
           // Unknown command that returned an item — reload everything
           showToast(data.message || 'Item added');
