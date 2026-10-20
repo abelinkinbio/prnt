@@ -125,10 +125,10 @@ CREATE TABLE IF NOT EXISTS daily_logs (
 ### Step 4: Apply the migration
 
 ```bash
-npm run db:migrate
+npm run db:migrate:remote
 ```
 
-That script runs `wrangler d1 migrations apply prnt-db`.
+That script runs `wrangler d1 migrations apply prnt-db --remote`.
 
 ### Step 5: Deploy
 

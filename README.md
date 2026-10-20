@@ -119,7 +119,7 @@ Adding a new `$command`:
 1. Create `src/plugins/commands/yourcommand.js` — export `name`, `description`, `syntax`, `parse(raw)`, `process(parsed, env)`, `respond()`
 2. Import it at the top of `src/plugins/registry.js` and add a registry entry
 3. Write a D1 migration for any new tables (`migrations/0002_name.sql`, same numbering as `0001_schema.sql`)
-4. `npm run db:migrate`, then `npm run deploy`
+4. `npm run db:migrate:remote`, then `npm run deploy`
 
 See [PLUGINS.md](PLUGINS.md) for the full guide.
 
