@@ -1,4 +1,4 @@
-import { jsonResponse } from '../utils.js';
+import { jsonResponse, logError } from '../utils.js';
 import { routeInput } from '../plugins/router.js';
 import { syncToGoogle } from '../google.js';
 
@@ -32,7 +32,7 @@ export async function handleInput(request, env, ctx) {
     if (error.status === 400) {
       return jsonResponse({ error: error.message }, 400);
     }
-    console.error('Input handler error:', error);
+    logError('Input handler error', error);
     return jsonResponse({ error: 'Failed to process input' }, 500);
   }
 }

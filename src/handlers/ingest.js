@@ -1,4 +1,4 @@
-import { jsonResponse } from '../utils.js';
+import { jsonResponse, logError } from '../utils.js';
 import { routeAndSyncInput } from './input.js';
 
 // POST /api/ingest
@@ -36,7 +36,7 @@ export async function handleIngest(request, env, ctx) {
     if (error.status === 400) {
       return jsonResponse({ error: error.message }, 400);
     }
-    console.error('Ingest error:', error);
-    return jsonResponse({ error: 'Failed to create item' }, 500);
+    logError('Ingest error', error);
+    return jsonResponse({ error: 'Failed to process input' }, 500);
   }
 }

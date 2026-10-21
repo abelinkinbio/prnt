@@ -23,6 +23,14 @@ export function htmlResponse(html, status = 200) {
   });
 }
 
+export function logError(action, error) {
+  console.error({
+    action,
+    message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined
+  });
+}
+
 // ---- ID Generation ----
 
 export function generateId(prefix = 'item') {

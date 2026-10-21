@@ -1,4 +1,4 @@
-import { jsonResponse } from '../utils.js';
+import { jsonResponse, logError } from '../utils.js';
 
 export async function handleSummary(env) {
   try {
@@ -118,7 +118,7 @@ Keep it concise and motivating. Don't use bullet points.`;
       }
     });
   } catch (error) {
-    console.error('Error generating summary:', error);
+    logError('Error generating summary', error);
     return jsonResponse({
       error: 'Failed to generate summary',
       summary: 'Unable to generate AI summary at this time. Please try again later.'

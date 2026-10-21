@@ -1,4 +1,4 @@
-import { jsonResponse, now } from '../utils.js';
+import { jsonResponse, now, logError } from '../utils.js';
 
 // GET /api/quotes — every non-deleted quote, newest first
 export async function handleQuotesList(env) {
@@ -14,7 +14,7 @@ export async function handleQuotesList(env) {
       total: result.results.length
     });
   } catch (error) {
-    console.error('Error fetching quotes:', error);
+    logError('Error fetching quotes', error);
     return jsonResponse({ error: 'Failed to fetch quotes' }, 500);
   }
 }
@@ -67,7 +67,7 @@ export async function handleQuoteUpdate(request, env, quoteId) {
 
     return jsonResponse({ quote });
   } catch (error) {
-    console.error('Error updating quote:', error);
+    logError('Error updating quote', error);
     return jsonResponse({ error: 'Failed to update quote' }, 500);
   }
 }
@@ -89,7 +89,7 @@ export async function handleQuoteDelete(env, quoteId) {
 
     return jsonResponse({ success: true, id: quoteId });
   } catch (error) {
-    console.error('Error deleting quote:', error);
+    logError('Error deleting quote', error);
     return jsonResponse({ error: 'Failed to delete quote' }, 500);
   }
 }
