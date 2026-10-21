@@ -1,3 +1,5 @@
+import { logError } from './utils.js';
+
 export const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/tasks'
@@ -82,7 +84,7 @@ export async function getValidAccessToken(env) {
 
       return tokens.access_token;
     } catch (error) {
-      console.error('Failed to refresh token:', error);
+      logError('Failed to refresh token', error);
       return null;
     }
   }
@@ -266,12 +268,12 @@ export async function syncToGoogle(env, item) {
 
     if (item.type === 'task' && item.due_date) {
       try { calendarEventId = await createCalendarReminder(accessToken, item); }
-      catch (e) { console.error('Calendar sync error:', e); }
+      catch (e) { logError('Calendar sync error', e); }
     }
 
     if (item.type === 'task') {
       try { googleTaskId = await createGoogleTask(accessToken, item); }
-      catch (e) { console.error('Tasks sync error:', e); }
+      catch (e) { logError('Tasks sync error', e); }
     }
 
     if (calendarEventId || googleTaskId) {
@@ -280,6 +282,6 @@ export async function syncToGoogle(env, item) {
       `).bind(calendarEventId, googleTaskId, item.id).run();
     }
   } catch (error) {
-    console.error('Google sync error:', error);
+    logError('Google sync error', error);
   }
 }

@@ -1,4 +1,4 @@
-import { jsonResponse } from '../utils.js';
+import { jsonResponse, logError } from '../utils.js';
 
 // GET /api/bookmarks — list all bookmarks with their tags
 export async function handleBookmarksList(env) {
@@ -32,7 +32,7 @@ export async function handleBookmarksList(env) {
 
     return jsonResponse({ bookmarks });
   } catch (error) {
-    console.error('Error fetching bookmarks:', error);
+    logError('Error fetching bookmarks', error);
     return jsonResponse({ error: 'Failed to fetch bookmarks' }, 500);
   }
 }
@@ -68,7 +68,7 @@ export async function handleBookmarkDelete(request, env) {
 
     return jsonResponse({ success: true, id });
   } catch (error) {
-    console.error('Error deleting bookmark:', error);
+    logError('Error deleting bookmark', error);
     return jsonResponse({ error: 'Failed to delete bookmark' }, 500);
   }
 }

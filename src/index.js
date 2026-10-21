@@ -1,4 +1,4 @@
-import { corsHeaders, jsonResponse } from './utils.js';
+import { corsHeaders, jsonResponse, logError } from './utils.js';
 
 // --- Core handlers ---
 import { handleItemsList } from './handlers/items.js';
@@ -127,7 +127,7 @@ export default {
       return env.ASSETS.fetch(request);
 
     } catch (error) {
-      console.error('Worker error:', error);
+      logError('Worker error', error);
       return jsonResponse({ error: 'Internal server error' }, 500);
     }
   }

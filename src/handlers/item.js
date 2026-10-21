@@ -1,4 +1,4 @@
-import { jsonResponse, generateId, now } from '../utils.js';
+import { jsonResponse, generateId, now, logError } from '../utils.js';
 import {
   getValidAccessToken, updateCalendarEvent, deleteCalendarEvent,
   updateGoogleTask, deleteGoogleTask, createCalendarReminder, createGoogleTask
@@ -33,7 +33,7 @@ async function syncUpdateToGoogle(env, item) {
       }
     }
   } catch (error) {
-    console.error('Google sync update error:', error);
+    logError('Google sync update error', error);
   }
 }
 
@@ -44,7 +44,7 @@ async function syncDeleteToGoogle(env, item) {
     if (item.google_calendar_event_id) await deleteCalendarEvent(accessToken, item.google_calendar_event_id);
     if (item.google_task_id) await deleteGoogleTask(accessToken, item.google_task_id);
   } catch (error) {
-    console.error('Google sync delete error:', error);
+    logError('Google sync delete error', error);
   }
 }
 
@@ -72,7 +72,7 @@ export async function handleItemGet(env, itemId) {
     if (!item) return jsonResponse({ error: 'Item not found' }, 404);
     return jsonResponse(item);
   } catch (error) {
-    console.error('Error fetching item:', error);
+    logError('Error fetching item', error);
     return jsonResponse({ error: 'Failed to fetch item' }, 500);
   }
 }
@@ -145,7 +145,7 @@ export async function handleItemUpdate(request, env, ctx, itemId) {
     ctx.waitUntil(syncUpdateToGoogle(env, item));
     return jsonResponse({ item });
   } catch (error) {
-    console.error('Error updating item:', error);
+    logError('Error updating item', error);
     return jsonResponse({ error: 'Failed to update item' }, 500);
   }
 }

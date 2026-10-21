@@ -1,4 +1,4 @@
-import { jsonResponse } from '../utils.js';
+import { jsonResponse, logError } from '../utils.js';
 
 // ---- GET /api/items ----
 
@@ -32,7 +32,7 @@ export async function handleItemsList(env) {
 
     return jsonResponse({ items });
   } catch (error) {
-    console.error('Error fetching items:', error);
+    logError('Error fetching items', error);
     return jsonResponse({ error: 'Failed to fetch items' }, 500);
   }
 }

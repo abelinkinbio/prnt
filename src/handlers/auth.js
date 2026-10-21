@@ -1,4 +1,4 @@
-import { jsonResponse, htmlResponse } from '../utils.js';
+import { jsonResponse, htmlResponse, logError } from '../utils.js';
 import { getAuthUrl, exchangeCodeForTokens } from '../google.js';
 
 // ---- GET /api/auth/google ----
@@ -53,7 +53,7 @@ export async function handleGoogleCallback(request, env) {
 
     return htmlResponse(renderSuccessPage());
   } catch (err) {
-    console.error('OAuth error:', err);
+    logError('OAuth error', err);
     return htmlResponse(renderErrorPage(err.message));
   }
 }
@@ -78,7 +78,7 @@ export async function handleGoogleStatus(env) {
       lastUpdated: auth.updated_at
     });
   } catch (error) {
-    console.error('Error checking auth status:', error);
+    logError('Error checking auth status', error);
     return jsonResponse({ error: 'Failed to check status' }, 500);
   }
 }
@@ -90,7 +90,7 @@ export async function handleGoogleDisconnect(env) {
     await env.DB.prepare(`DELETE FROM google_auth WHERE id = 'default'`).run();
     return jsonResponse({ success: true, message: 'Google account disconnected' });
   } catch (error) {
-    console.error('Error disconnecting:', error);
+    logError('Error disconnecting', error);
     return jsonResponse({ error: 'Failed to disconnect' }, 500);
   }
 }
