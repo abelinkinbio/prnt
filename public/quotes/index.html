@@ -760,7 +760,11 @@
         });
         
         const data = await res.json();
-        if (res.ok && data.quote) {
+        if (!res.ok) {
+          showToast(data.error || 'Failed to update', 'error');
+          return;
+        }
+        if (data.quote) {
           const idx = quotes.findIndex(q => q.id === data.quote.id);
           if (idx !== -1) quotes[idx] = data.quote;
           displayQuote(data.quote);
@@ -780,20 +784,23 @@
         const res = await fetch(`/api/quotes/${currentQuote.id}`, {
           method: 'DELETE'
         });
-        
-        if (res.ok) {
-          // Remove from local array
-          quotes = quotes.filter(q => q.id !== currentQuote.id);
-          
-          if (quotes.length === 0) {
-            showEmptyState();
-          } else {
-            currentIndex = Math.min(currentIndex, quotes.length - 1);
-            displayQuote(quotes[currentIndex]);
-          }
-          
-          showToast('Quote deleted');
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Failed to delete', 'error');
+          return;
         }
+
+        // Remove from local array
+        quotes = quotes.filter(q => q.id !== currentQuote.id);
+
+        if (quotes.length === 0) {
+          showEmptyState();
+        } else {
+          currentIndex = Math.min(currentIndex, quotes.length - 1);
+          displayQuote(quotes[currentIndex]);
+        }
+
+        showToast('Quote deleted');
       } catch (e) {
         console.error('Failed to delete:', e);
         showToast('Failed to delete', 'error');
@@ -834,7 +841,11 @@
         });
         
         const data = await res.json();
-        if (res.ok && data.quote) {
+        if (!res.ok) {
+          showToast(data.error || 'Failed to save', 'error');
+          return;
+        }
+        if (data.quote) {
           const idx = quotes.findIndex(q => q.id === data.quote.id);
           if (idx !== -1) quotes[idx] = data.quote;
           displayQuote(data.quote);

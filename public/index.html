@@ -1004,6 +1004,10 @@
       try {
         const res = await fetch(`${API_BASE}/auth/google/status`);
         const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Failed to check status', 'error');
+          return;
+        }
         const el = document.getElementById('google-status');
         const icon = document.getElementById('google-status-icon');
         if (data.connected && !data.isExpired) {
@@ -1020,9 +1024,19 @@
     async function handleGoogleClick() {
       if (googleConnected) {
         if (confirm('Disconnect Google sync?')) {
-          await fetch(`${API_BASE}/auth/google/status`, { method: 'DELETE' });
-          showToast('Google disconnected');
-          checkGoogleStatus();
+          try {
+            const res = await fetch(`${API_BASE}/auth/google/status`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) {
+              showToast(data.error || 'Failed to disconnect', 'error');
+              return;
+            }
+            showToast('Google disconnected');
+            checkGoogleStatus();
+          } catch (e) {
+            console.error('Google disconnect error:', e);
+            showToast('Failed to disconnect', 'error');
+          }
         }
       } else {
         window.location.href = `${API_BASE}/auth/google`;
@@ -1037,6 +1051,10 @@
       try {
         const res = await fetch(`${API_BASE}/commands`);
         const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Failed to load commands', 'error');
+          return;
+        }
         availableCommands = data.commands || [];
 
         // Populate $ suggestions for autocomplete
@@ -1355,6 +1373,10 @@
       try {
         const res = await fetch(`${API_BASE}/items`);
         const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Failed to load items', 'error');
+          return;
+        }
         items = (data.items || []).filter(i => !i.deleted);
         render();
         updateStats();
@@ -1385,25 +1407,36 @@
           body: JSON.stringify(updates)
         });
         const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Failed to update', 'error');
+          return false;
+        }
         const idx = items.findIndex(i => i.id === id);
         if (idx !== -1) items[idx] = data.item;
         render();
         updateStats();
+        return true;
       } catch (e) {
         console.error('Update error:', e);
         showToast('Failed to update', 'error');
+        return false;
       }
     }
 
     async function deleteItem(id) {
       const item = items.find(i => i.id === id);
-      lastDeletedItem = item;
       try {
-        await fetch(`${API_BASE}/items/${id}`, {
+        const res = await fetch(`${API_BASE}/items/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ deleted: true })
         });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Failed to delete', 'error');
+          return;
+        }
+        lastDeletedItem = item;
         items = items.filter(i => i.id !== id);
         render();
         updateStats();
@@ -1417,7 +1450,12 @@
 
     async function deleteBookmark(id) {
       try {
-        await fetch(`${API_BASE}/bookmarks?id=${id}`, { method: 'DELETE' });
+        const res = await fetch(`${API_BASE}/bookmarks?id=${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Failed to delete bookmark', 'error');
+          return;
+        }
         bookmarks = bookmarks.filter(b => b.id !== id);
         render();
         updateStats();
@@ -1432,11 +1470,16 @@
     async function undoDelete() {
       if (!lastDeletedItem) return;
       try {
-        await fetch(`${API_BASE}/items/${lastDeletedItem.id}`, {
+        const res = await fetch(`${API_BASE}/items/${lastDeletedItem.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ deleted: false })
         });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Failed to restore', 'error');
+          return;
+        }
         items.unshift(lastDeletedItem);
         lastDeletedItem = null;
         render();
@@ -1503,7 +1546,8 @@
         tags
       };
 
-      await updateItem(id, updates);
+      const ok = await updateItem(id, updates);
+      if (!ok) return;
       closeEditModal();
       showToast('Item updated');
     }
