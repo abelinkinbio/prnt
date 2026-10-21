@@ -10,7 +10,7 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   
   <style>
     :root {
@@ -18,7 +18,6 @@
       --bg-secondary: #ffffff;
       --bg-grid: rgba(206, 212, 218, 0.4);
       --border-color: #dee2e6;
-      --border-accent: #228be6;
       --text-primary: #212529;
       --text-secondary: #495057;
       --text-muted: #868e96;
@@ -35,7 +34,6 @@
       --bg-secondary: rgba(10, 22, 40, 0.95);
       --bg-grid: rgba(30, 73, 118, 0.3);
       --border-color: #1e4976;
-      --border-accent: #3d8eff;
       --text-primary: #e8f1ff;
       --text-secondary: #adb5bd;
       --text-muted: #6c757d;
@@ -650,7 +648,6 @@
         if (quotes.length === 0) {
           showEmptyState();
         } else {
-          // Start with a random quote
           randomQuote();
         }
       } catch (e) {
@@ -674,7 +671,6 @@
       attrEl.textContent = quote.attribution ? `— ${quote.attribution}` : '';
       sourceEl.textContent = quote.source || '';
       
-      // Update favorite button
       if (quote.favorite) {
         favBtn.classList.add('active');
         favBtn.textContent = '♥';
@@ -782,7 +778,6 @@
         });
         
         if (res.ok) {
-          // Remove from local array
           quotes = quotes.filter(q => q.id !== currentQuote.id);
           
           if (quotes.length === 0) {

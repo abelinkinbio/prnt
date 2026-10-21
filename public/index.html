@@ -21,14 +21,13 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-primary: #f8f9fa;
       --bg-secondary: #ffffff;
       --bg-grid: rgba(206, 212, 218, 0.4);
       --border-color: #dee2e6;
-      --border-accent: #adb5bd;
       --text-primary: #212529;
       --text-secondary: #495057;
       --text-muted: #868e96;
@@ -50,7 +49,6 @@
       --bg-secondary: rgba(10, 22, 40, 0.9);
       --bg-grid: rgba(30, 73, 118, 0.5);
       --border-color: #1e4976;
-      --border-accent: #3d8eff;
       --text-primary: #e8f1ff;
       --text-secondary: #adb5bd;
       --text-muted: #6c757d;
@@ -939,8 +937,6 @@
     let lastDeletedItem = null;
     let selectedSuggestion = -1;
 
-    // Suggestions data — includes the existing shorthand hints
-    // plus dynamic $command hints loaded from the server
     const suggestions = {
       '@': [
         { syntax: '@today', desc: 'Due today' },
@@ -996,7 +992,6 @@
       if (isDark) { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('prnt-theme', 'light'); }
       else { document.documentElement.setAttribute('data-theme', 'dark'); localStorage.setItem('prnt-theme', 'dark'); }
     }
-    window.toggleTheme = toggleTheme;
     initTheme();
 
     // ========== GOOGLE ==========
@@ -1028,25 +1023,20 @@
         window.location.href = `${API_BASE}/auth/google`;
       }
     }
-    window.handleGoogleClick = handleGoogleClick;
 
     // ========== LOAD AVAILABLE COMMANDS ==========
-    // Fetches the list of $commands from the server.
-    // This populates the $ autocomplete and the Quick Reference sidebar.
     async function loadCommands() {
       try {
         const res = await fetch(`${API_BASE}/commands`);
         const data = await res.json();
         availableCommands = data.commands || [];
 
-        // Populate $ suggestions for autocomplete
         suggestions['$'] = availableCommands.map(cmd => ({
           syntax: '$' + cmd.name,
           desc: cmd.description,
           isCommand: true
         }));
 
-        // Update Quick Reference sidebar
         const refItems = document.getElementById('commands-ref-items');
         if (refItems && availableCommands.length > 0) {
           refItems.innerHTML = availableCommands.map(cmd =>
@@ -1083,7 +1073,6 @@
     function applySuggestion(syntax) {
       const val = mainInput.value;
       const pos = mainInput.selectionStart;
-      // Find the trigger character position
       let triggerPos = pos - 1;
       while (triggerPos >= 0 && !/[\s@#/$p*`\[]/.test(val[triggerPos])) triggerPos--;
       if (triggerPos < 0) triggerPos = 0;
@@ -1094,7 +1083,6 @@
       hideSuggestions();
       updateLivePreview();
     }
-    window.applySuggestion = applySuggestion;
 
     function navigateSuggestions(dir) {
       const items = suggestionsDropdown.querySelectorAll('.suggestion-item');
@@ -1107,8 +1095,6 @@
     }
 
     // ========== LIVE PREVIEW ==========
-    // Detects $commands and shows appropriate preview.
-    // For regular input, uses the existing client-side parser.
     function updateLivePreview() {
       const val = mainInput.value.trim();
       if (!val) {
@@ -1144,7 +1130,6 @@
         }
       }
 
-      // No $command — use existing task/note preview parser
       mainInput.classList.remove('command-mode');
       livePreview.classList.remove('command-mode');
 
@@ -1177,16 +1162,13 @@
       const wordStart = val.lastIndexOf(' ', pos - 2) + 1;
       const currentWord = val.substring(wordStart, pos);
 
-      // Check for triggers
       if (lastChar === '$' && (pos === 1 || val[pos - 2] === ' ' || val[pos - 2] === '\n')) {
-        // $ at start of input or after whitespace → show command suggestions
         showSuggestions('$');
       } else if (['@', '#', '/', '*', '`', '['].includes(lastChar)) {
         showSuggestions(lastChar);
       } else if (currentWord.match(/^p[0-3]?$/i) && (lastChar === 'p' || /[0-3]/.test(lastChar))) {
         showSuggestions('p');
       } else if (currentWord.startsWith('$') && currentWord.length > 1) {
-        // Typing a $command name — filter suggestions
         const partial = currentWord.substring(1).toLowerCase();
         const filtered = availableCommands
           .filter(c => c.name.startsWith(partial))
@@ -1250,17 +1232,14 @@
       mainInput.focus();
       updateLivePreview();
     }
-    window.insertCmd = insertCmd;
 
     // ========== SUBMIT RAW INPUT ==========
-    // Sends raw text to POST /api/input (the plugin router).
-    // The server decides what to do with it: task, note, bookmark, etc.
     async function submitRawInput(rawText) {
       try {
         const res = await fetch(`${API_BASE}/input`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ raw: rawText, source: 'web' })
+          body: JSON.stringify({ raw: rawText })
         });
         const data = await res.json();
 
@@ -1269,17 +1248,14 @@
           return;
         }
 
-        // Route the response to the right local data store
         const command = data.command || 'default';
 
         if (command === 'default' && data.item) {
-          // It's a task or note — add to items array
           items.unshift(data.item);
           render();
           updateStats();
           showToast(`${data.item.type === 'task' ? 'Task' : 'Note'} added`);
         } else if (command === 'bookmark' && data.item) {
-          // It's a bookmark — add to bookmarks array
           bookmarks.unshift(data.item);
           render();
           updateStats();
@@ -1288,7 +1264,6 @@
           // Quote lives on /quotes, not in the task or bookmark lists.
           showToast(data.message || 'Quote saved');
         } else if (data.item) {
-          // Unknown command that returned an item — reload everything
           showToast(data.message || 'Item added');
           await loadItems();
           await loadBookmarks();
@@ -1355,7 +1330,7 @@
       try {
         const res = await fetch(`${API_BASE}/items`);
         const data = await res.json();
-        items = (data.items || []).filter(i => !i.deleted);
+        items = data.items || [];
         render();
         updateStats();
       } catch (e) {
@@ -1413,7 +1388,6 @@
         showToast('Failed to delete', 'error');
       }
     }
-    window.deleteItem = deleteItem;
 
     async function deleteBookmark(id) {
       try {
@@ -1427,7 +1401,6 @@
         showToast('Failed to delete bookmark', 'error');
       }
     }
-    window.deleteBookmark = deleteBookmark;
 
     async function undoDelete() {
       if (!lastDeletedItem) return;
@@ -1446,13 +1419,11 @@
         showToast('Failed to restore', 'error');
       }
     }
-    window.undoDelete = undoDelete;
 
     function toggleComplete(id) {
       const item = items.find(i => i.id === id);
       if (item) updateItem(id, { completed: !item.completed });
     }
-    window.toggleComplete = toggleComplete;
 
     function filterByTag(tag) {
       activeTagFilter = tag;
@@ -1461,14 +1432,12 @@
       switchView('list');
       render();
     }
-    window.filterByTag = filterByTag;
 
     function clearTagFilter() {
       activeTagFilter = null;
       document.getElementById('tag-filter-bar').classList.remove('active');
       render();
     }
-    window.clearTagFilter = clearTagFilter;
 
     // ========== EDIT MODAL ==========
     function openEditModal(id) {
@@ -1481,12 +1450,10 @@
       document.getElementById('edit-tags').value = (item.tags || []).join(', ');
       document.getElementById('edit-modal').classList.add('active');
     }
-    window.openEditModal = openEditModal;
 
     function closeEditModal() {
       document.getElementById('edit-modal').classList.remove('active');
     }
-    window.closeEditModal = closeEditModal;
 
     async function saveEdit() {
       const id = document.getElementById('edit-item-id').value;
@@ -1507,7 +1474,6 @@
       closeEditModal();
       showToast('Item updated');
     }
-    window.saveEdit = saveEdit;
 
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && document.getElementById('edit-modal').classList.contains('active')) {
@@ -1711,7 +1677,6 @@
 
       container.innerHTML = bookmarks.map(bk => {
         const tagsHtml = (bk.tags || []).map(t => `<span class="task-tag">#${t}</span>`).join('');
-        // Truncate long URLs for display
         let displayUrl = bk.url;
         try {
           const u = new URL(bk.url);
@@ -1832,7 +1797,6 @@
         content.innerHTML = '<div class="ai-summary-loading">Could not generate summary. Try again later.</div>';
       } finally { btn.disabled = false; btn.textContent = 'Generate'; }
     }
-    window.generateSummary = generateSummary;
 
     // ========== DRAG AND DROP ==========
     let draggedItem = null;
@@ -1871,7 +1835,6 @@
       document.getElementById('due-today-count').textContent = dueToday;
       document.getElementById('completed-count').textContent = completed.length;
 
-      // Tab counts
       document.getElementById('matrix-count').textContent = active.length;
       document.getElementById('list-count').textContent = active.length;
       document.getElementById('notes-count').textContent = notes.length;
