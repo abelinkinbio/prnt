@@ -51,7 +51,7 @@ export async function process(parsed, env) {
   `).bind(
     id,
     parsed.url,
-    null, // title — could be fetched later
+    null,
     parsed.note,
     timestamp,
     timestamp

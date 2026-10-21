@@ -15,7 +15,6 @@ export async function routeAndSyncInput(raw, env, ctx) {
   return result;
 }
 
-// POST /api/input — route input through the plugin system
 export async function handleInput(request, env, ctx) {
   try {
     const body = await request.json();

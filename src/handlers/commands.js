@@ -1,7 +1,6 @@
 import { jsonResponse } from '../utils.js';
 import { registry } from '../plugins/registry.js';
 
-// GET /api/commands — list real $commands from the registry
 export function handleCommandsList() {
   const commands = Object.entries(registry)
     .filter(([key]) => key !== '__default')

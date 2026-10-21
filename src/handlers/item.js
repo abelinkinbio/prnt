@@ -4,8 +4,6 @@ import {
   updateGoogleTask, deleteGoogleTask, createCalendarReminder, createGoogleTask
 } from '../google.js';
 
-// ---- Sync updates to Google ----
-
 async function syncUpdateToGoogle(env, item) {
   try {
     const accessToken = await getValidAccessToken(env);
@@ -48,8 +46,6 @@ async function syncDeleteToGoogle(env, item) {
   }
 }
 
-// ---- Helper: Fetch item with tags ----
-
 async function getItemWithTags(env, itemId) {
   const itemResult = await env.DB.prepare(`SELECT * FROM items WHERE id = ? AND deleted = 0`).bind(itemId).first();
   if (!itemResult) return null;
@@ -64,8 +60,6 @@ async function getItemWithTags(env, itemId) {
   };
 }
 
-// ---- GET /api/items/:id ----
-
 export async function handleItemGet(env, itemId) {
   try {
     const item = await getItemWithTags(env, itemId);
@@ -77,15 +71,12 @@ export async function handleItemGet(env, itemId) {
   }
 }
 
-// ---- PATCH /api/items/:id ----
-
 export async function handleItemUpdate(request, env, ctx, itemId) {
   try {
     const body = await request.json();
     const updates = [];
     const values = [];
 
-    // Build dynamic SQL update — only update fields that were sent
     const allowedFields = [
       'content', 'type', 'priority', 'due_date', 'due_time',
       'completed', 'completed_at', 'deleted',
@@ -114,7 +105,6 @@ export async function handleItemUpdate(request, env, ctx, itemId) {
       updates.push('google_calendar_event_id = NULL', 'google_task_id = NULL');
     }
 
-    // Always update the timestamp
     updates.push('updated_at = ?');
     values.push(now());
     values.push(itemId);
@@ -123,7 +113,6 @@ export async function handleItemUpdate(request, env, ctx, itemId) {
       await env.DB.prepare(`UPDATE items SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
     }
 
-    // Handle tags if provided
     if (body.tags) {
       await env.DB.prepare(`DELETE FROM tags WHERE item_id = ?`).bind(itemId).run();
       if (body.tags.length > 0) {
