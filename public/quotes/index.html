@@ -215,6 +215,10 @@
     .quote-actions:focus-within {
       opacity: 1;
     }
+
+    @media (hover: none) {
+      .quote-actions { opacity: 1; }
+    }
     
     .action-btn {
       width: 40px;
@@ -594,15 +598,15 @@
     <div class="modal">
       <button class="modal-close" onclick="closeEditModal()">×</button>
       <div class="modal-field">
-        <label class="modal-label">Quote</label>
+        <label class="modal-label" for="edit-quote-text">Quote</label>
         <textarea class="modal-input" id="edit-quote-text" rows="4"></textarea>
       </div>
       <div class="modal-field">
-        <label class="modal-label">Attribution</label>
+        <label class="modal-label" for="edit-attribution">Attribution</label>
         <input type="text" class="modal-input" id="edit-attribution" placeholder="Who said it?">
       </div>
       <div class="modal-field">
-        <label class="modal-label">Source</label>
+        <label class="modal-label" for="edit-source">Source</label>
         <input type="text" class="modal-input" id="edit-source" placeholder="Book, speech, etc.">
       </div>
       <div class="modal-actions">

@@ -145,7 +145,7 @@
     }
     .stat-label { font-size: 8px; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
     .stat-value { font-weight: 600; font-size: 14px; }
-    .google-status { cursor: pointer; transition: all 0.2s; }
+    .google-status { cursor: pointer; transition: all 0.2s; font: inherit; color: inherit; }
     .google-status:hover { border-color: var(--accent-color); background: var(--accent-light); }
     .google-status.connected .stat-value { color: var(--success-color); }
     .google-status.disconnected .stat-value { color: var(--text-muted); }
@@ -270,6 +270,7 @@
     .ref-group-title { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
     .ref-items { display: flex; flex-wrap: wrap; gap: 6px; }
     .ref-cmd {
+      font: inherit;
       font-size: 11px;
       padding: 4px 8px;
       background: var(--accent-light);
@@ -453,8 +454,10 @@
     
     .task-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
     .task-btn {
+      font: inherit;
       width: 20px;
       height: 20px;
+      padding: 0;
       border: 1px solid var(--border-color);
       cursor: pointer;
       display: flex;
@@ -555,13 +558,14 @@
     .list-item.completed { opacity: 0.5; }
     .list-item.completed .list-text { text-decoration: line-through; }
     
-    .list-checkbox { width: 16px; height: 16px; border: 1px solid var(--border-color); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; margin-top: 2px; background: var(--bg-primary); transition: all 0.2s; }
+    .list-checkbox { font: inherit; width: 16px; height: 16px; padding: 0; border: 1px solid var(--border-color); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; margin-top: 2px; background: var(--bg-primary); color: inherit; transition: all 0.2s; }
     .list-checkbox:hover { border-color: var(--success-color); }
     .list-checkbox.completed { background: var(--success-color); color: white; border-color: var(--success-color); }
     .list-content { flex: 1; min-width: 0; }
     .list-text { font-size: 12px; margin-bottom: 3px; }
     .list-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
-    .list-item:hover .list-actions { opacity: 1; }
+    .list-item:hover .list-actions,
+    .list-item:focus-within .list-actions { opacity: 1; }
     .list-btn { width: 18px; height: 18px; border: none; background: none; cursor: pointer; color: var(--text-muted); font-size: 10px; transition: color 0.2s; }
     .list-btn:hover { color: var(--accent-color); }
     .list-btn.delete:hover { color: var(--error-color); }
@@ -579,7 +583,8 @@
     .note-item:hover { border-color: var(--accent-color); }
     .note-content { font-size: 13px; line-height: 1.6; margin-bottom: 8px; padding-right: 40px; }
     .note-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
-    .note-item:hover .note-actions { opacity: 1; }
+    .note-item:hover .note-actions,
+    .note-item:focus-within .note-actions { opacity: 1; }
     .note-timestamp { font-size: 9px; color: var(--text-muted); }
     
     /* Bookmarks View */
@@ -618,7 +623,14 @@
       color: var(--command-color);
     }
     .bookmark-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
-    .bookmark-item:hover .bookmark-actions { opacity: 1; }
+    .bookmark-item:hover .bookmark-actions,
+    .bookmark-item:focus-within .bookmark-actions { opacity: 1; }
+
+    @media (hover: none) {
+      .list-actions,
+      .note-actions,
+      .bookmark-actions { opacity: 1; }
+    }
     
     /* Wrapped View */
     .wrapped-container { height: 100%; overflow-y: auto; }
@@ -709,10 +721,10 @@
         <div class="stat"><div class="stat-label">Active</div><div class="stat-value" id="active-count">0</div></div>
         <div class="stat"><div class="stat-label">Due</div><div class="stat-value" id="due-today-count">0</div></div>
         <div class="stat"><div class="stat-label">Done</div><div class="stat-value" id="completed-count">0</div></div>
-        <div class="stat google-status disconnected" id="google-status" onclick="handleGoogleClick()">
+        <button type="button" class="stat google-status disconnected" id="google-status" onclick="handleGoogleClick()">
           <div class="stat-label">Google</div>
           <div class="stat-value" id="google-status-icon">○</div>
-        </div>
+        </button>
       </div>
       
       <div class="input-terminal">
@@ -735,46 +747,46 @@
         <div class="ref-group" id="commands-ref-group">
           <div class="ref-group-title">$commands</div>
           <div class="ref-items" id="commands-ref-items">
-            <span class="ref-cmd command-ref" onclick="insertCmd('$bookmark ')">$bookmark</span>
+            <button type="button" class="ref-cmd command-ref" onclick="insertCmd('$bookmark ')">$bookmark</button>
           </div>
         </div>
         
         <div class="ref-group">
           <div class="ref-group-title">Priority</div>
           <div class="ref-items">
-            <span class="ref-cmd" onclick="insertCmd('p0')" style="color:var(--priority-p0)">p0</span>
-            <span class="ref-cmd" onclick="insertCmd('p1')" style="color:var(--priority-p1)">p1</span>
-            <span class="ref-cmd" onclick="insertCmd('p2')" style="color:var(--priority-p2)">p2</span>
-            <span class="ref-cmd" onclick="insertCmd('p3')" style="color:var(--priority-p3)">p3</span>
+            <button type="button" class="ref-cmd" onclick="insertCmd('p0')" style="color:var(--priority-p0)">p0</button>
+            <button type="button" class="ref-cmd" onclick="insertCmd('p1')" style="color:var(--priority-p1)">p1</button>
+            <button type="button" class="ref-cmd" onclick="insertCmd('p2')" style="color:var(--priority-p2)">p2</button>
+            <button type="button" class="ref-cmd" onclick="insertCmd('p3')" style="color:var(--priority-p3)">p3</button>
           </div>
         </div>
         
         <div class="ref-group">
           <div class="ref-group-title">Due Dates</div>
           <div class="ref-items">
-            <span class="ref-cmd" onclick="insertCmd('@today')">@today</span>
-            <span class="ref-cmd" onclick="insertCmd('@eod')">@eod</span>
-            <span class="ref-cmd" onclick="insertCmd('@tmrw')">@tmrw</span>
-            <span class="ref-cmd" onclick="insertCmd('@friday')">@friday</span>
-            <span class="ref-cmd" onclick="insertCmd('@eow')">@eow</span>
+            <button type="button" class="ref-cmd" onclick="insertCmd('@today')">@today</button>
+            <button type="button" class="ref-cmd" onclick="insertCmd('@eod')">@eod</button>
+            <button type="button" class="ref-cmd" onclick="insertCmd('@tmrw')">@tmrw</button>
+            <button type="button" class="ref-cmd" onclick="insertCmd('@friday')">@friday</button>
+            <button type="button" class="ref-cmd" onclick="insertCmd('@eow')">@eow</button>
           </div>
         </div>
         
         <div class="ref-group">
           <div class="ref-group-title">Tags & Type</div>
           <div class="ref-items">
-            <span class="ref-cmd" onclick="insertCmd('#')">#tag</span>
-            <span class="ref-cmd" onclick="insertCmd('/t')">/t task</span>
+            <button type="button" class="ref-cmd" onclick="insertCmd('#')">#tag</button>
+            <button type="button" class="ref-cmd" onclick="insertCmd('/t')">/t task</button>
           </div>
         </div>
         
         <div class="ref-group markdown">
           <div class="ref-group-title">Markdown</div>
           <div class="ref-items">
-            <span class="ref-cmd" onclick="insertCmd('**bold**')">**bold**</span>
-            <span class="ref-cmd" onclick="insertCmd('*italic*')">*italic*</span>
-            <span class="ref-cmd" onclick="insertCmd('`code`')">`code`</span>
-            <span class="ref-cmd" onclick="insertCmd('[text](url)')">[link](url)</span>
+            <button type="button" class="ref-cmd" onclick="insertCmd('**bold**')">**bold**</button>
+            <button type="button" class="ref-cmd" onclick="insertCmd('*italic*')">*italic*</button>
+            <button type="button" class="ref-cmd" onclick="insertCmd('`code`')">`code`</button>
+            <button type="button" class="ref-cmd" onclick="insertCmd('[text](url)')">[link](url)</button>
           </div>
         </div>
       </div>
@@ -896,12 +908,12 @@
       <button class="modal-close" onclick="closeEditModal()">×</button>
       <input type="hidden" id="edit-item-id">
       <div class="modal-field">
-        <label class="modal-label">Content</label>
+        <label class="modal-label" for="edit-content">Content</label>
         <textarea class="modal-input" id="edit-content" rows="3"></textarea>
       </div>
       <div class="modal-row">
         <div class="modal-field">
-          <label class="modal-label">Priority</label>
+          <label class="modal-label" for="edit-priority">Priority</label>
           <select class="modal-input" id="edit-priority">
             <option value="">None</option>
             <option value="0">P0 - Urgent + Important</option>
@@ -911,12 +923,12 @@
           </select>
         </div>
         <div class="modal-field">
-          <label class="modal-label">Due Date</label>
+          <label class="modal-label" for="edit-due-date">Due Date</label>
           <input type="date" class="modal-input" id="edit-due-date">
         </div>
       </div>
       <div class="modal-field">
-        <label class="modal-label">Tags (comma separated)</label>
+        <label class="modal-label" for="edit-tags">Tags (comma separated)</label>
         <input type="text" class="modal-input" id="edit-tags" placeholder="work, urgent, frontend">
       </div>
       <div class="modal-actions">
@@ -1050,7 +1062,7 @@
         const refItems = document.getElementById('commands-ref-items');
         if (refItems && availableCommands.length > 0) {
           refItems.innerHTML = availableCommands.map(cmd =>
-            `<span class="ref-cmd command-ref" onclick="insertCmd('$${cmd.name} ')" title="${cmd.description}">$${cmd.name}</span>`
+            `<button type="button" class="ref-cmd command-ref" onclick="insertCmd('$${cmd.name} ')" title="${cmd.description}">$${cmd.name}</button>`
           ).join('');
         }
       } catch (e) {
@@ -1610,9 +1622,9 @@
             <span class="task-timestamp">${timeAgo(task.created_at)}</span>
           </div>
           <div class="task-actions">
-            <div class="task-btn check ${completedClass}" onclick="toggleComplete('${task.id}')">${task.completed ? '✓' : ''}</div>
-            <div class="task-btn edit" onclick="openEditModal('${task.id}')">✎</div>
-            <div class="task-btn delete" onclick="deleteItem('${task.id}')">✕</div>
+            <button type="button" class="task-btn check ${completedClass}" onclick="toggleComplete('${task.id}')" aria-label="${task.completed ? 'Mark incomplete' : 'Mark complete'}">${task.completed ? '✓' : ''}</button>
+            <button type="button" class="task-btn edit" onclick="openEditModal('${task.id}')" aria-label="Edit">✎</button>
+            <button type="button" class="task-btn delete" onclick="deleteItem('${task.id}')" aria-label="Delete">✕</button>
           </div>
         </div>
       `;
@@ -1656,7 +1668,7 @@
 
       return `
         <div class="list-item ${completedClass} ${overdue ? 'overdue' : ''}" data-id="${task.id}" data-priority="${task.priority}">
-          <div class="list-checkbox ${completedClass}" onclick="toggleComplete('${task.id}')">${task.completed ? '✓' : ''}</div>
+          <button type="button" class="list-checkbox ${completedClass}" onclick="toggleComplete('${task.id}')" aria-label="${task.completed ? 'Mark incomplete' : 'Mark complete'}">${task.completed ? '✓' : ''}</button>
           <div class="list-content">
             <div class="list-text">${parseMarkdown(task.content)}</div>
             <div class="task-meta">
@@ -1666,8 +1678,8 @@
             </div>
           </div>
           <div class="list-actions">
-            <button class="list-btn" onclick="openEditModal('${task.id}')">✎</button>
-            <button class="list-btn delete" onclick="deleteItem('${task.id}')">✕</button>
+            <button type="button" class="list-btn" onclick="openEditModal('${task.id}')" aria-label="Edit">✎</button>
+            <button type="button" class="list-btn delete" onclick="deleteItem('${task.id}')" aria-label="Delete">✕</button>
           </div>
         </div>
       `;
@@ -1692,8 +1704,8 @@
               <span class="note-timestamp">${timeAgo(note.created_at)}</span>
             </div>
             <div class="note-actions">
-              <button class="list-btn" onclick="openEditModal('${note.id}')">✎</button>
-              <button class="list-btn delete" onclick="deleteItem('${note.id}')">✕</button>
+              <button type="button" class="list-btn" onclick="openEditModal('${note.id}')" aria-label="Edit">✎</button>
+              <button type="button" class="list-btn delete" onclick="deleteItem('${note.id}')" aria-label="Delete">✕</button>
             </div>
           </div>
         `;
@@ -1731,7 +1743,7 @@
               <span class="task-timestamp">${timeAgo(bk.created_at)}</span>
             </div>
             <div class="bookmark-actions">
-              <button class="list-btn delete" onclick="deleteBookmark('${bk.id}')">✕</button>
+              <button type="button" class="list-btn delete" onclick="deleteBookmark('${bk.id}')" aria-label="Delete">✕</button>
             </div>
           </div>
         `;
