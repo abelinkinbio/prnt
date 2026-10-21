@@ -60,12 +60,12 @@ prnt/
 │   ├── utils.js                # Shared helpers
 │   ├── handlers/
 │   │   ├── items.js            # GET /api/items
-│   │   ├── item.js             # GET/PATCH/DELETE /api/items/:id
+│   │   ├── item.js             # GET/PATCH /api/items/:id
 │   │   ├── input.js            # POST /api/input (universal entry)
 │   │   ├── ingest.js           # POST /api/ingest (external channels)
 │   │   ├── commands.js         # GET /api/commands
 │   │   ├── bookmarks.js        # GET/DELETE /api/bookmarks
-│   │   ├── quotes.js           # CRUD /api/quotes
+│   │   ├── quotes.js           # GET list/PATCH/DELETE /api/quotes
 │   │   ├── summary.js          # POST /api/summary
 │   │   └── auth.js             # Google OAuth
 │   └── plugins/
@@ -107,6 +107,8 @@ npm run deploy
 ```
 
 ### Local Dev
+
+Copy `.dev.vars.example` to `.dev.vars`, then:
 
 ```bash
 npm run dev

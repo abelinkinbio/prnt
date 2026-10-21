@@ -1,7 +1,5 @@
 import { jsonResponse } from '../utils.js';
 
-// ---- GET /api/items ----
-
 export async function handleItemsList(env) {
   try {
     const itemsResult = await env.DB.prepare(`
@@ -16,7 +14,6 @@ export async function handleItemsList(env) {
 
     const tagsResult = await env.DB.prepare(`SELECT item_id, tag FROM tags`).all();
 
-    // Build a lookup: item_id → [tags]
     const tagsByItem = {};
     for (const row of tagsResult.results) {
       if (!tagsByItem[row.item_id]) tagsByItem[row.item_id] = [];

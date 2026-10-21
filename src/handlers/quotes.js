@@ -1,6 +1,5 @@
 import { jsonResponse, now } from '../utils.js';
 
-// GET /api/quotes — every non-deleted quote, newest first
 export async function handleQuotesList(env) {
   try {
     const result = await env.DB.prepare(`
@@ -19,14 +18,12 @@ export async function handleQuotesList(env) {
   }
 }
 
-// PATCH /api/quotes/:id — update a quote (edit text, toggle favorite, etc.)
 export async function handleQuoteUpdate(request, env, quoteId) {
   try {
     const body = await request.json();
     const updates = [];
     const values = [];
 
-    // Only allow updating specific fields
     const allowedFields = [
       'quote_text',
       'attribution',
@@ -45,11 +42,9 @@ export async function handleQuoteUpdate(request, env, quoteId) {
       return jsonResponse({ error: 'No valid fields to update' }, 400);
     }
 
-    // Always update the timestamp
     updates.push('updated_at = ?');
     values.push(now());
 
-    // Add quote ID for the WHERE clause
     values.push(quoteId);
 
     await env.DB.prepare(
@@ -72,7 +67,6 @@ export async function handleQuoteUpdate(request, env, quoteId) {
   }
 }
 
-// DELETE /api/quotes/:id — soft-delete a quote
 export async function handleQuoteDelete(env, quoteId) {
   try {
     const existing = await env.DB.prepare(

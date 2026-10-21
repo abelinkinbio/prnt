@@ -1,4 +1,4 @@
-export const GOOGLE_SCOPES = [
+const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/tasks'
 ].join(' ');
@@ -35,7 +35,7 @@ export async function exchangeCodeForTokens(code, clientId, clientSecret, redire
   return response.json();
 }
 
-export async function refreshAccessToken(refreshToken, clientId, clientSecret) {
+async function refreshAccessToken(refreshToken, clientId, clientSecret) {
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

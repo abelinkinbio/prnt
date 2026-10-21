@@ -1,9 +1,7 @@
 import { jsonResponse } from '../utils.js';
 import { routeAndSyncInput } from './input.js';
 
-// POST /api/ingest
 export async function handleIngest(request, env, ctx) {
-  // --- API key check ---
   const apiKey = request.headers.get('X-API-Key')
     || request.headers.get('Authorization')?.replace('Bearer ', '');
 

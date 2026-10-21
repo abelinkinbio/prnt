@@ -42,8 +42,7 @@ function formatDate(date) {
 }
 
 // ---- Shorthand Parser ----
-// Parses text like "Review PR @today p0 #frontend" into
-// structured data. Same logic as your old ingest.js parser.
+// Parses text like "Review PR @today p0 #frontend" into structured data.
 
 export function parseShorthand(raw) {
   let content = raw.trim();

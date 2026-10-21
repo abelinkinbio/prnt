@@ -2,7 +2,6 @@ import { jsonResponse } from '../utils.js';
 
 export async function handleSummary(env) {
   try {
-    // Get items from the last 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString();
@@ -13,7 +12,6 @@ export async function handleSummary(env) {
       ORDER BY created_at DESC
     `).bind(sevenDaysAgoStr, sevenDaysAgoStr).all();
 
-    // Get tags for recent items
     const itemIds = recentItems.results.map(i => i.id);
     let tagsByItem = {};
 
@@ -28,7 +26,6 @@ export async function handleSummary(env) {
       }
     }
 
-    // Calculate stats
     const tasks = recentItems.results.filter(i => i.type === 'task');
     const notes = recentItems.results.filter(i => i.type === 'note');
     const completedTasks = tasks.filter(t => t.completed === 1);
@@ -44,7 +41,6 @@ export async function handleSummary(env) {
       tags.forEach(t => allTags.add(t));
     }
 
-    // If no Anthropic API key, return basic summary
     if (!env.ANTHROPIC_API_KEY) {
       const completionRate = tasks.length > 0
         ? Math.round((completedTasks.length / tasks.length) * 100)
@@ -57,7 +53,6 @@ export async function handleSummary(env) {
       });
     }
 
-    // Build context for Claude
     const taskSummaries = tasks.slice(0, 20).map(t => ({
       content: t.content,
       priority: t.priority,
